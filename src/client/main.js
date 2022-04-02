@@ -50,6 +50,7 @@ export function main() {
     viewport_postprocess: false,
     antialias: false,
     show_fps: false,
+    do_borders: false,
     ui_sprites: {
       button: ['ui/button', [128,768,128], [256]],
       button_down: ['ui/button_down', [128,768,128], [256]],
@@ -157,7 +158,8 @@ export function main() {
     // pico8.colors[9],
     // pico8.colors[15],
 
-    vec4(1,0.5,0.5,1),
+    //vec4(1,0.5,0.5,1),
+    vec4(1,0.6,0.5,1),
     vec4(0.5,1,0.5,1),
     vec4(0.5,0.5,1,1),
 
