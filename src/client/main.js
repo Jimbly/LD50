@@ -23,7 +23,7 @@ const game_width = 400;
 const game_height = 256;
 const TILE_SIZE = 13;
 
-const ALLOW_ROTATE = true;
+const ALLOW_ROTATE = false;
 
 export function main() {
   if (engine.DEBUG) {
@@ -133,6 +133,7 @@ export function main() {
     }
     game.piece = null;
     game.miss = 0;
+    game.score = 0;
     game.actions = 0;
     game.time_left = 10;
   }
@@ -279,19 +280,53 @@ export function main() {
     }
   }
 
+  let ship_used = [];
+  for (let yy = 0; yy < SHIPH; ++yy) {
+    let row = [];
+    for (let xx = 0; xx < SHIPW; ++xx) {
+      row.push(0);
+    }
+    ship_used.push(row);
+  }
   function shipCalcScore(ship) {
     let count = {};
     let { board } = ship;
-    for (let ii = 0; ii < board.length; ++ii) {
-      let row = board[ii];
+    let score = 100;
+    for (let ii = 0; ii < ship_used.length; ++ii) {
+      let row = ship_used[ii];
       for (let jj = 0; jj < row.length; ++jj) {
-        let tile = row[jj];
+        row[jj] = 0;
+      }
+    }
+    function walk(x, y, match) {
+      if (boardGet(ship_used, x, y, 1)) {
+        return 0;
+      }
+      if (board[y][x] !== match) {
+        return 0;
+      }
+      ship_used[y][x] = 1;
+      let ret = 1;
+      for (let ii = 0; ii < DX.length; ++ii) {
+        ret += walk(x + DX[ii], y + DY[ii], match);
+      }
+      return ret;
+    }
+    for (let yy = 0; yy < board.length; ++yy) {
+      let row = board[yy];
+      for (let xx = 0; xx < row.length; ++xx) {
+        let tile = row[xx];
         count[tile] = (count[tile] || 0) + 1;
+        if (tile >= 0) {
+          let score_count = walk(xx, yy, tile);
+          score += score_count * (score_count + 1) / 2;
+        }
       }
     }
     return {
       time: max(1, 8 - (ship.miss || 0)),
       done: !count[SHIP_EMPTY],
+      score,
     };
   }
 
@@ -306,6 +341,7 @@ export function main() {
       game.time_left += score.time;
       let idx = game.ships.indexOf(ship);
       game.ships[idx] = newShip(game);
+      game.score += score.score;
     }
   }
 
@@ -359,10 +395,9 @@ export function main() {
           }
           ui.drawRect(sx - 2, sy - 2, sx + TILE_SIZE + 2, sy + TILE_SIZE + 2, zz, color);
           if (tx >= 0 && tx < SHIPW && ty >= 0 && ty < SHIPH) {
+            temp_ship.board[ty][tx] = place;
             if (do_place) {
               board[ty][tx] = place;
-            } else {
-              temp_ship.board[ty][tx] = place;
             }
           }
         }
@@ -395,6 +430,14 @@ export function main() {
       z: Z.UI + 20,
       align: font.ALIGN.HCENTER,
       text: `Fill for +${score.time} Time`,
+      color,
+    });
+    font.draw({
+      x: x0, w: SHIP_VIS_W - SHIP_PAD,
+      y: y0 + SHIPH * TILEADV + ui.font_height + 1,
+      z: Z.UI + 20,
+      align: font.ALIGN.HCENTER,
+      text: `${score.score} Points`,
       color,
     });
   }
@@ -450,22 +493,42 @@ export function main() {
     if (game.time_left === 1) {
       time_color = (time_color & 0xFFFFFF00) | floor((1 - abs(sin(engine.frame_timestamp * 0.005))) * 255);
     }
+    let y = 14;
     font.draw({
       x: side_x, w: side_w,
-      y: 24,
+      y,
       align: font.ALIGN.HCENTER,
       text: 'Time Left',
       size: side_size,
       color: time_color,
     });
+    y += side_size;
     font.draw({
       x: side_x, w: side_w,
-      y: 24 + side_size,
+      y,
       align: font.ALIGN.HCENTER,
       text: String(game.time_left),
       size: side_size,
       color: time_color,
     });
+    y += side_size + 4;
+    font.draw({
+      x: side_x, w: side_w,
+      y,
+      align: font.ALIGN.HCENTER,
+      text: 'Score',
+      size: side_size,
+    });
+    y += side_size;
+    font.draw({
+      x: side_x, w: side_w,
+      y,
+      align: font.ALIGN.HCENTER,
+      text: String(game.score),
+      size: side_size,
+    });
+    y += side_size;
+
     if (!game.time_left) {
       font.draw({
         x: 0, w: game_width,
@@ -486,7 +549,7 @@ export function main() {
       y: game_height - 12,
       z: Z.MODAL + 1,
       align: font.ALIGN.HCENTER,
-      text: `Total Actions: ${game.actions}  Misses: ${game.miss}`,
+      text: `Total Score: ${game.score}  Actions: ${game.actions}  Misses: ${game.miss}`,
       color: 0x808080ff,
     });
   }

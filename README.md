@@ -9,7 +9,6 @@ Ludum Dare 50 Entry by Jimbly - "TBD"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
-  Score: ship connected color segments = more points
   High score list in upper left
   Multiple levels / difficulties?  Just different seeds?
     Inevitable Mode - get 1 less time per 2 ships (or, game length options?)
@@ -20,7 +19,8 @@ Feedback:
 Polish:
   Slide new ships in/out
   Perfect! Great! Good! popups upon completing ship
-  Anime time ticking up/down
+  Animate time ticking up/down
+  Maybe allow placing large pieces straddling two ships
 
 
 Ideas:
