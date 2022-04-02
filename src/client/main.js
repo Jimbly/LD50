@@ -522,6 +522,7 @@ export function main() {
     score_system.setScore(game.level_def.idx,
       { score: game.score, actions: game.actions }
     );
+    score_system.updateHighScores();
     if (game.time_decrease) {
       --game.time_decrease;
       if (!game.time_decrease) {
@@ -704,7 +705,7 @@ export function main() {
     let y = PAD;
     let z = Z.UI;
 
-    if (left_mode === 'NEWGAME') {
+    if (left_mode === 'NEWGAME' || !game.time_left && game.dismissed) {
       const SCORE_H = SHIPY - TILE_PAD - y;
       ui.drawRect(x, y, x + SCORE_W, y + SCORE_H, z - 1, scores_bg);
     }

@@ -112,7 +112,7 @@ function submitScore(level, score, cb) {
 
 export function updateHighScores(changed_cb) {
   let now = Date.now();
-  if (now - score_update_time > 5*60*1000 || need_update) {
+  if (now - score_update_time > 15*1000 || need_update) {
     need_update = false;
     score_update_time = now;
     for (let level_idx in level_defs) {
