@@ -4,7 +4,7 @@ local_storage.setStoragePrefix('ld50'); // Before requiring anything else that m
 
 const engine = require('glov/client/engine.js');
 const input = require('glov/client/input.js');
-const { abs, floor, max, min, sin } = Math;
+const { abs, floor, max, min, round, sin } = Math;
 const net = require('glov/client/net.js');
 const { randCreate, mashString } = require('glov/common/rand_alea.js');
 // const { createSprite } = require('glov/client/sprites.js');
@@ -199,6 +199,9 @@ export function main() {
     anim[[x,0]] = anim_offs[x];
   }
 
+  const TILE_PAD = 2;
+  const TILEADV = TILE_SIZE + TILE_PAD;
+
   function pickup(match) {
     let { members } = match;
     let board = game.m3board;
@@ -209,6 +212,8 @@ export function main() {
       members[ii][0] -= match.x;
       members[ii][1] -= match.y;
     }
+    match.xoffs -= match.x * TILEADV;
+    match.yoffs -= match.y * TILEADV;
     game.piece = match;
 
     for (let jj = 0; jj < board.length; ++jj) {
@@ -221,8 +226,6 @@ export function main() {
     }
   }
 
-  const TILE_PAD = 2;
-  const TILEADV = TILE_SIZE + TILE_PAD;
   const M3_VIS_W = TILEADV * M3W - TILE_PAD;
   const M3X = (game_width - M3_VIS_W) / 2;
   const M3Y = TILE_SIZE;
@@ -252,10 +255,13 @@ export function main() {
           y: y - TILE_PAD/2,
           w: TILEADV, h: TILEADV,
         };
+        let click;
         if (game.piece) {
           // no input
-        } else if (input.click(click_param)) {
+        } else if ((click = input.mouseDownEdge(click_param))) {
           let match = getMatchShape(board, xx, yy);
+          match.xoffs = click.pos[0] - M3X - 4;
+          match.yoffs = click.pos[1] - M3Y - 4;
           pickup(match);
         } else if (input.mouseOver(click_param)) {
           let match = getMatchShape(board, xx, yy);
@@ -311,19 +317,23 @@ export function main() {
     [SHIP_DAMAGED]: vec4(0.5,0.1,0,1),
   };
   let mouse_pos = vec2();
-  function doShip(x0, y0, ship) {
+  function doShip(x0, y0, ship, do_piece) {
     let z = Z.UI;
     let { piece } = game;
 
     let { board } = ship;
     let temp_ship;
-    if (piece) {
+    if (do_piece) {
       temp_ship = clone(ship);
-      let mouse_x = floor((mouse_pos[0] - (x0 - TILE_PAD/2)) / TILEADV);
-      let mouse_y = floor((mouse_pos[1] - (y0 - TILE_PAD/2)) / TILEADV);
-      if (mouse_x >= -2 && mouse_y >= -2 && mouse_x + piece.w <= SHIPW + 2 && mouse_y + piece.h <= SHIPH + 2) {
-        let do_place = input.click();
-        let { members } = piece;
+      let { members, xoffs, yoffs } = piece;
+      let mouse_x = round((mouse_pos[0] - (x0 + xoffs - TILE_PAD/2)) / TILEADV);
+      let mouse_y = round((mouse_pos[1] - (y0 + yoffs - TILE_PAD/2)) / TILEADV);
+      if (mouse_x > -piece.w && mouse_y > -piece.h &&
+        mouse_x < SHIPW && mouse_y < SHIPH
+      ) {
+        let do_place = input.click({
+          max_dist: Infinity,
+        });
         for (let ii = 0; ii < members.length; ++ii) {
           let pos = members[ii];
           let [tx, ty] = pos;
@@ -389,17 +399,29 @@ export function main() {
   function doShips() {
     let { ships, piece } = game;
     let pos = input.mousePos(mouse_pos);
+    let piece_ship = -1;
     if (piece) {
-      let { members, tile } = piece;
+      let { members, tile, w, xoffs, yoffs } = piece;
+      // find cursor midpoint and choose ship
+      const CURSOR_PAD = 0;
+      let mpx = mouse_pos[0] + (w * TILEADV - TILE_PAD) / 2 - CURSOR_PAD;
+      if (mpx < SHIPX + SHIP_VIS_W - SHIP_PAD/2) {
+        piece_ship = 0;
+      } else if (mpx < SHIPX + SHIP_VIS_W * 2 - SHIP_PAD/2) {
+        piece_ship = 1;
+      } else {
+        piece_ship = 2;
+      }
+
       for (let ii = 0; ii < members.length; ++ii) {
         let [xx, yy] = members[ii];
-        let x = pos[0] + xx * TILEADV - TILE_SIZE/2;
-        let y = pos[1] + yy * TILEADV - TILE_SIZE/2;
+        let x = pos[0] + xx * TILEADV - CURSOR_PAD - xoffs;
+        let y = pos[1] + yy * TILEADV - CURSOR_PAD - yoffs;
         ui.drawRect(x, y, x + TILE_SIZE, y + TILE_SIZE, Z.UI + 10, M3COLORS[tile]);
       }
     }
     for (let ii = 0; ii < ships.length; ++ii) {
-      doShip(SHIPX + ii * SHIP_VIS_W, SHIPY, ships[ii]);
+      doShip(SHIPX + ii * SHIP_VIS_W, SHIPY, ships[ii], piece_ship === ii);
     }
   }
 
