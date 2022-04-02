@@ -694,6 +694,7 @@ export function main() {
   const LEFT_BAR_X = 0;
   const LEFT_BUTTON_Y = SHIPY - TILEADV - ui.button_height;
   const SCORE_W = game_width - SCORE_PAD - SCORE_X;
+  const LINE_W = 0.4;
 
   let scores_edit_box;
   function doHighScores() {
@@ -715,7 +716,7 @@ export function main() {
     let pad = size;
     font.drawSizedAligned(null, x, y, z, header_size, font.ALIGN.HCENTERFIT, width, 0, '       High Scores      Turns');
     y += header_size + 2;
-    ui.drawLine(x + 8, y, x + SCORE_W - 8, y, z, 1, 1, unit_vec);
+    ui.drawLine(x + 8, y, x + SCORE_W - 8, y, z, LINE_W, 1, unit_vec);
     y += 2;
     let level_id = level_def.name;
     let scores = score_system.high_scores[level_id];
@@ -824,7 +825,7 @@ export function main() {
     const BUTTON_W = 60;
     font.draw({ x, y, w: BUTTON_W, align: font.ALIGN.HCENTER, text: 'Levels' });
     y += ui.font_height;
-    ui.drawLine(x, y, x + BUTTON_W, y, z, 1, 1, unit_vec);
+    ui.drawLine(x, y, x + BUTTON_W, y, z, LINE_W, 1, unit_vec);
     y += 4;
 
     function newGame(def, seed, force_new) {
