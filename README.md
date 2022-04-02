@@ -9,7 +9,6 @@ Ludum Dare 50 Entry by Jimbly - "TBD"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
-  High score list
   Theming
     - simple, with rising water in background? waves, bubbles, stormy above, gradient sky
     - pixel art ships and goods?
@@ -20,6 +19,7 @@ Feedback:
 Polish:
   Simplify UI - hide high scores completely initially, otherwise have toggle to show them?  Auto-show when you get over X points?
      Hide everything except the top and a single hole at first!
+  Reasonable default seeds for all difficulty levels
   Slide new ships in/out
   Perfect! Great! Good! popups upon completing ship
   Animate time ticking up/down

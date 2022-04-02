@@ -190,6 +190,46 @@ export function main() {
     game.actions = 0;
     game.time_left = level_def.initial_turns || 10;
   }
+  const SER_FIELDS = [
+    'level',
+    'm3board',
+    'ships',
+    'piece',
+    'miss',
+    'score',
+    'actions',
+    'time_left',
+  ];
+  function gameFromJSON(obj) {
+    let game = new Game(obj.level);
+    game.rand.reseed(obj.seed);
+    SER_FIELDS.forEach((field) => {
+      game[field] = clone(obj[field]);
+    });
+    return game;
+  }
+  Game.prototype.toJSON = function () {
+    let game = this;
+    let obj = {
+      rand: game.rand.seed,
+    };
+    SER_FIELDS.forEach((field) => {
+      obj[field] = game[field];
+    });
+    return obj;
+  };
+  level_list.forEach(function (level_def) {
+    let saved = local_storage.getJSON(`level.${level_def.name}`, null);
+    if (saved) {
+      level_def.saved = saved;
+    }
+  });
+  function saveGame(game) {
+    let { level_def } = game;
+    let obj = game.toJSON();
+    level_def.saved = clone(obj);
+    local_storage.setJSON(`level.${level_def.name}`, obj);
+  }
 
   function getMatchShape(board, x0, y0) {
     let tile = board[y0][x0];
@@ -280,6 +320,7 @@ export function main() {
         }
       }
     }
+    saveGame(game);
   }
 
   const M3_VIS_W = TILEADV * M3W - TILE_PAD;
@@ -406,6 +447,7 @@ export function main() {
         game.base_time = max(1, game.base_time - 1);
       }
     }
+    saveGame(game);
   }
 
   const SHIP_PAD = TILEADV * 3;
@@ -563,6 +605,11 @@ export function main() {
     let y = PAD;
     let z = Z.UI;
 
+    if (left_mode === 'NEWGAME') {
+      const SCORE_H = SHIPY - TILE_PAD - y;
+      ui.drawRect(x, y, x + SCORE_W, y + SCORE_H, z - 1, scores_bg);
+    }
+
     let need_name = score_system.player_name.indexOf('Anonymous') === 0;
     let max_scores = need_name ? 9 : 13; // plus 1 for own score if not on list
     let { level_def } = game;
@@ -684,8 +731,12 @@ export function main() {
     ui.drawLine(x, y, x + BUTTON_W, y, z, 1, 1, unit_vec);
     y += 4;
 
-    function newGame(def, seed) {
-      game = new Game(def.name, seed);
+    function newGame(def, seed, force_new) {
+      if (def.saved && !force_new) {
+        game = gameFromJSON(def.saved);
+      } else {
+        game = new Game(def.name, seed);
+      }
     }
 
     for (let ii = 0; ii < level_list.length; ++ii) {
@@ -701,12 +752,12 @@ export function main() {
           ui.modalDialog({
             text: 'Do you wish to restart your current game?',
             buttons: {
-              'yes': newGame.bind(null, def, null),
+              'yes': newGame.bind(null, def, null, true),
               'no': null,
             }
           });
         } else {
-          newGame(def, def.default_seed);
+          newGame(def, def.default_seed, false);
         }
       }
       let desc_x = x + BUTTON_W + PAD;
@@ -784,7 +835,7 @@ export function main() {
     if (ui.buttonText({
       x: LEFT_BAR_X + (LEFT_BAR_W - ui.button_width) / 2,
       y: LEFT_BUTTON_Y,
-      text: 'New Game',
+      text: 'Level Select',
     })) {
       left_mode = 'NEWGAME';
     }
@@ -833,7 +884,12 @@ export function main() {
   }
 
   function testInit(dt) {
-    game = new Game(level_defs.short.name, level_defs.short.default_seed);
+    let start_def = level_defs.short;
+    if (start_def.saved) {
+      game = gameFromJSON(start_def.saved);
+    } else {
+      game = new Game(start_def.name, start_def.default_seed);
+    }
     engine.setState(stateTest);
     stateTest(dt);
   }
