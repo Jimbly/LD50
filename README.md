@@ -9,7 +9,6 @@ Ludum Dare 50 Entry by Jimbly - "TBD"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
-  Try rotating
   Score: ship connected color segments = more points
   High score list in upper left
   Multiple levels / difficulties?  Just different seeds?

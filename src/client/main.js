@@ -23,6 +23,8 @@ const game_width = 400;
 const game_height = 256;
 const TILE_SIZE = 13;
 
+const ALLOW_ROTATE = true;
+
 export function main() {
   if (engine.DEBUG) {
     // Enable auto-reload, etc
@@ -396,15 +398,29 @@ export function main() {
       color,
     });
   }
+  function rotate(piece) {
+    let { members, h } = piece;
+    for (let ii = 0; ii < members.length; ++ii) {
+      let member = members[ii];
+      let ny = h - member[0] - 1;
+      let nx = member[1];
+      member[0] = nx;
+      member[1] = ny;
+    }
+  }
   function doShips() {
     let { ships, piece } = game;
     let pos = input.mousePos(mouse_pos);
     let piece_ship = -1;
     if (piece) {
+      if (ALLOW_ROTATE && input.click({ button: 2 })) {
+        rotate(piece);
+      }
       let { members, tile, w, xoffs, yoffs } = piece;
+
       // find cursor midpoint and choose ship
       const CURSOR_PAD = 0;
-      let mpx = mouse_pos[0] + (w * TILEADV - TILE_PAD) / 2 - CURSOR_PAD;
+      let mpx = mouse_pos[0] - xoffs + (w * TILEADV - TILE_PAD) / 2 - CURSOR_PAD;
       if (mpx < SHIPX + SHIP_VIS_W - SHIP_PAD/2) {
         piece_ship = 0;
       } else if (mpx < SHIPX + SHIP_VIS_W * 2 - SHIP_PAD/2) {
@@ -476,7 +492,7 @@ export function main() {
   }
 
   function testInit(dt) {
-    game = new Game('test');
+    game = new Game('test1');
     engine.setState(stateTest);
     stateTest(dt);
   }
