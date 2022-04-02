@@ -10,9 +10,11 @@ Start with: `npm start` (after running `npm i` once)
 
 Next:
   Theming
-    - simple, with rising water in background? waves, bubbles, stormy above, gradient sky
-    - pixel art ships and goods?
-    - pure abstract?
+    - simple, with rising water in background
+    - waves, bubbles, stormy above, gradient sky
+  Don't double-count a second miss in the same spot?  Maybe even allow it to fill in with color?
+  Allow some number of misses per ship, or ramp them smoother to be nicer?
+  Try 4 colors instead of 3
 Feedback:
   Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
   JK did not discover you could place things such that you get a miss - kept just choosing small pieces
@@ -24,7 +26,8 @@ Polish:
   Perfect! Great! Good! popups upon completing ship
   Animate time ticking up/down
   Maybe allow placing large pieces straddling two ships
-
+  Add fullscreen button in corner
+  Panel GFX and color for restart dialog
 
 Ideas:
 

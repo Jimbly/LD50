@@ -364,6 +364,7 @@ export function debugGetMouseMoveX() {
 }
 
 let mouse_moved = false;
+export let mouse_ever_moved = false;
 let mouse_button_had_edge = false;
 let temp_delta = vec2();
 let last_abs_move = 0;
@@ -385,6 +386,7 @@ function onMouseMove(event, no_stop) {
       pad_mode = false;
     }
   }
+  mouse_ever_moved = true;
   mouse_moved = true;
   // offsetX/layerX return position relative to text-entry boxes, not good!
   // clientX/clientY do not handle weird scrolling that happens on iOS, but
