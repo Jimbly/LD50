@@ -8,6 +8,21 @@ Ludum Dare 50 Entry by Jimbly - "TBD"
 
 Start with: `npm start` (after running `npm i` once)
 
+Next:
+  Blinking when time < 3
+  Need to be able to place giant pieces on either ship easier - choose center of piece, choose closest ship to center, then just use that one
+  Try rotating
+  Score: ship connected color segments = more points
+  High score list in upper left
+  Multiple levels / difficulties?  Just different seeds?
+    Inevitable Mode - get 1 less time per 2 ships (or, difficulty slider?)
+    Endless Mode - 8 per ship seems solid
+  Theming
+Polish:
+  Slide new ships in/out
+  Perfect! Great! Good! popups upon completing ship
+  Anime time ticking up/down
+
 
 Ideas:
 

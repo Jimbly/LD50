@@ -4,12 +4,13 @@ local_storage.setStoragePrefix('ld50'); // Before requiring anything else that m
 
 const engine = require('glov/client/engine.js');
 const input = require('glov/client/input.js');
-const { floor, max, min } = Math;
+const { abs, floor, max, min, sin } = Math;
 const net = require('glov/client/net.js');
 const { randCreate, mashString } = require('glov/common/rand_alea.js');
 // const { createSprite } = require('glov/client/sprites.js');
 const ui = require('glov/client/ui.js');
-const { vec2, vec4 } = require('glov/common/vmath.js');
+const { clone } = require('glov/common/util.js');
+const { unit_vec, vec2, vec4 } = require('glov/common/vmath.js');
 
 window.Z = window.Z || {};
 Z.BACKGROUND = 1;
@@ -80,51 +81,58 @@ export function main() {
     }
     return board[y][x];
   }
+  function newShip(game) {
+    let { rand } = game;
+    let ship = {
+      miss: 0,
+      board: [],
+    };
+    let { board } = ship;
+    for (let yy = 0; yy < SHIPH; ++yy) {
+      let row = [];
+      for (let xx = 0; xx < SHIPW; ++xx) {
+        let is_edge = !yy || !xx || yy === SHIPH - 1 || xx === SHIPW - 1;
+        row.push(is_edge ? rand.range(3) ? SHIP_BORDER : SHIP_EMPTY : SHIP_EMPTY);
+      }
+      board.push(row);
+    }
+    for (let yy = 0; yy < board.length; ++yy) {
+      let row = board[yy];
+      for (let xx = 0; xx < row.length; ++xx) {
+        if (row[xx] === SHIP_EMPTY) {
+          let neighbors = 0;
+          for (let kk = 0; kk < DX.length; ++kk) {
+            if (boardGet(board, xx + DX[kk], yy + DY[kk], SHIP_BORDER) === SHIP_EMPTY) {
+              neighbors++;
+            }
+          }
+          if (!neighbors) {
+            row[xx] = SHIP_BORDER;
+          }
+        }
+      }
+    }
+    return ship;
+  }
   function Game(seed) {
-    let rand = this.rand = randCreate(mashString(seed));
-    this.m3board = [];
+    let game = this;
+    let rand = game.rand = randCreate(mashString(seed));
+    game.m3board = [];
     for (let ii = 0; ii < M3H; ++ii) {
       let row = [];
       for (let jj = 0; jj < M3W; ++jj) {
         row.push(rand.range(M3VARIETY));
       }
-      this.m3board.push(row);
+      game.m3board.push(row);
     }
-    this.ships = [];
+    game.ships = [];
     for (let ii = 0; ii < NUM_SHIPS; ++ii) {
-      let ship = {
-        board: [],
-      };
-      let { board } = ship;
-      for (let yy = 0; yy < SHIPH; ++yy) {
-        let row = [];
-        for (let xx = 0; xx < SHIPW; ++xx) {
-          let is_edge = !yy || !xx || yy === SHIPH - 1 || xx === SHIPW - 1;
-          row.push(is_edge ? rand.range(3) ? SHIP_BORDER : SHIP_EMPTY : SHIP_EMPTY);
-        }
-        board.push(row);
-      }
-      for (let yy = 0; yy < board.length; ++yy) {
-        let row = board[yy];
-        for (let xx = 0; xx < row.length; ++xx) {
-          if (row[xx] === SHIP_EMPTY) {
-            let neighbors = 0;
-            for (let kk = 0; kk < DX.length; ++kk) {
-              if (boardGet(board, xx + DX[kk], yy + DY[kk], SHIP_BORDER) === SHIP_EMPTY) {
-                neighbors++;
-              }
-            }
-            if (!neighbors) {
-              row[xx] = SHIP_BORDER;
-            }
-          }
-        }
-      }
-      this.ships.push(ship);
+      game.ships.push(newShip(game));
     }
-    this.piece = null;
-    this.miss = 0;
-    this.actions = 0;
+    game.piece = null;
+    game.miss = 0;
+    game.actions = 0;
+    game.time_left = 10;
   }
 
   function getMatchShape(board, x0, y0) {
@@ -193,19 +201,30 @@ export function main() {
 
   function pickup(match) {
     let { members } = match;
+    let board = game.m3board;
     anim_offs = [];
     for (let ii = 0; ii < members.length; ++ii) {
       let [x, y] = members[ii];
-      m3clearTile(game.m3board, x, y);
+      board[y][x] = -1;
       members[ii][0] -= match.x;
       members[ii][1] -= match.y;
     }
     game.piece = match;
+
+    for (let jj = 0; jj < board.length; ++jj) {
+      let row = board[jj];
+      for (let ii = 0; ii < row.length; ++ii) {
+        while (row[ii] === -1) {
+          m3clearTile(board, ii, jj);
+        }
+      }
+    }
   }
 
   const TILE_PAD = 2;
   const TILEADV = TILE_SIZE + TILE_PAD;
-  const M3X = (game_width - TILEADV * M3W - TILE_PAD) / 2;
+  const M3_VIS_W = TILEADV * M3W - TILE_PAD;
+  const M3X = (game_width - M3_VIS_W) / 2;
   const M3Y = TILE_SIZE;
   function doMatch3() {
     for (let key in anim) {
@@ -252,6 +271,40 @@ export function main() {
     }
   }
 
+  function shipCalcScore(ship) {
+    let count = {};
+    let { board } = ship;
+    for (let ii = 0; ii < board.length; ++ii) {
+      let row = board[ii];
+      for (let jj = 0; jj < row.length; ++jj) {
+        let tile = row[jj];
+        count[tile] = (count[tile] || 0) + 1;
+      }
+    }
+    return {
+      time: max(1, 8 - (ship.miss || 0)),
+      done: !count[SHIP_EMPTY],
+    };
+  }
+
+  function placePiece(ship) {
+    // actual pieces placed while drawing
+    game.actions++;
+    game.piece = null;
+    game.time_left--;
+    let score = shipCalcScore(ship);
+    if (score.done) {
+      // remove and score ship
+      game.time_left += score.time;
+      let idx = game.ships.indexOf(ship);
+      game.ships[idx] = newShip(game);
+    }
+  }
+
+  const SHIP_PAD = TILEADV * 3;
+  const SHIP_VIS_W = TILEADV * SHIPW + SHIP_PAD;
+  const SHIPX = (game_width - (SHIP_VIS_W * NUM_SHIPS - SHIP_PAD)) / 2;
+  const SHIPY = M3Y + TILEADV * M3H + TILE_SIZE;
   const SHIP_COLORS = {
     [SHIP_EMPTY]: vec4(0,0,0,1),
     [SHIP_BORDER]: null,
@@ -263,7 +316,9 @@ export function main() {
     let { piece } = game;
 
     let { board } = ship;
+    let temp_ship;
     if (piece) {
+      temp_ship = clone(ship);
       let mouse_x = floor((mouse_pos[0] - (x0 - TILE_PAD/2)) / TILEADV);
       let mouse_y = floor((mouse_pos[1] - (y0 - TILE_PAD/2)) / TILEADV);
       if (mouse_x >= -2 && mouse_y >= -2 && mouse_x + piece.w <= SHIPW + 2 && mouse_y + piece.h <= SHIPH + 2) {
@@ -277,22 +332,30 @@ export function main() {
           let sx = x0 + tx * TILEADV;
           let sy = y0 + ty * TILEADV;
           let existing = board[ty]?.[tx];
-          ui.drawRect(sx - 2, sy - 2, sx + TILE_SIZE + 2, sy + TILE_SIZE + 2, z - 1,
-            existing !== SHIP_EMPTY ? SHIP_COLORS[SHIP_DAMAGED] : [1,1,1,1]);
-          if (do_place) {
-            let place = piece.tile;
-            if (existing !== SHIP_EMPTY) {
+          let place = piece.tile;
+          let color = unit_vec;
+          let zz = z - 1;
+          if (existing !== SHIP_EMPTY) {
+            place = SHIP_DAMAGED;
+            zz--;
+            color = SHIP_COLORS[SHIP_DAMAGED];
+            temp_ship.miss++;
+            if (do_place) {
               game.miss++;
-              place = SHIP_DAMAGED;
+              ship.miss++;
             }
-            if (tx >= 0 && tx < SHIPW && ty >= 0 && ty < SHIPH) {
+          }
+          ui.drawRect(sx - 2, sy - 2, sx + TILE_SIZE + 2, sy + TILE_SIZE + 2, zz, color);
+          if (tx >= 0 && tx < SHIPW && ty >= 0 && ty < SHIPH) {
+            if (do_place) {
               board[ty][tx] = place;
+            } else {
+              temp_ship.board[ty][tx] = place;
             }
           }
         }
         if (do_place) {
-          game.actions++;
-          game.piece = null;
+          placePiece(ship);
         }
       }
     }
@@ -309,11 +372,20 @@ export function main() {
         }
       }
     }
+    let score = shipCalcScore(temp_ship || ship);
+    let color;
+    if (score.done) {
+      color = 0x00FF00ff;
+    }
+    font.draw({
+      x: x0, w: SHIP_VIS_W - SHIP_PAD,
+      y: y0 + SHIPH * TILEADV,
+      z: Z.UI + 20,
+      align: font.ALIGN.HCENTER,
+      text: `Fill for +${score.time} Time`,
+      color,
+    });
   }
-  const SHIP_PAD = TILEADV * 3;
-  const SHIP_VIS_W = TILEADV * SHIPW + SHIP_PAD;
-  const SHIPX = (game_width - (SHIP_VIS_W * NUM_SHIPS - SHIP_PAD)) / 2;
-  const SHIPY = M3Y + TILEADV * M3H + TILE_SIZE;
   function doShips() {
     let { ships, piece } = game;
     let pos = input.mousePos(mouse_pos);
@@ -332,13 +404,52 @@ export function main() {
   }
 
   function stateTest(dt) {
+    let side_w = (game_width - M3_VIS_W) / 2;
+    let side_x = M3X + M3_VIS_W;
+    let side_size = 24;
+    let time_color = game.time_left <= 2 ? 0xFF0000ff :
+      game.time_left < 4 ? 0xFFFF00ff : 0xFFFFFFff;
+    if (game.time_left === 1) {
+      time_color = (time_color & 0xFFFFFF00) | floor((1 - abs(sin(engine.frame_timestamp * 0.005))) * 255);
+    }
+    font.draw({
+      x: side_x, w: side_w,
+      y: 24,
+      align: font.ALIGN.HCENTER,
+      text: 'Time Left',
+      size: side_size,
+      color: time_color,
+    });
+    font.draw({
+      x: side_x, w: side_w,
+      y: 24 + side_size,
+      align: font.ALIGN.HCENTER,
+      text: String(game.time_left),
+      size: side_size,
+      color: time_color,
+    });
+    if (!game.time_left) {
+      font.draw({
+        x: 0, w: game_width,
+        y: 0, h: game_height,
+        z: Z.MODAL,
+        align: font.ALIGN.HVCENTER,
+        text: 'Game Over',
+        font_size: 48,
+      });
+      ui.menuUp();
+    }
+
     doMatch3();
     doShips();
+
     font.draw({
       x: 0, w: game_width,
-      y: game_height - 24,
+      y: game_height - 12,
+      z: Z.MODAL + 1,
       align: font.ALIGN.HCENTER,
-      text: `Actions: ${game.actions}  Misses: ${game.miss}`,
+      text: `Total Actions: ${game.actions}  Misses: ${game.miss}`,
+      color: 0x808080ff,
     });
   }
 
