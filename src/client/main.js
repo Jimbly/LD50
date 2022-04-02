@@ -4,7 +4,7 @@ local_storage.setStoragePrefix('ld50'); // Before requiring anything else that m
 
 const engine = require('glov/client/engine.js');
 const input = require('glov/client/input.js');
-const { abs, floor, max, min, round, sin } = Math;
+const { abs, floor, max, min, random, round, sin } = Math;
 const net = require('glov/client/net.js');
 const { randCreate, mashString } = require('glov/common/rand_alea.js');
 // const { createSprite } = require('glov/client/sprites.js');
@@ -19,11 +19,13 @@ Z.PARTICLES = 20;
 Z.UI_TEST = 200;
 
 // Virtual viewport for our game logic
-const game_width = 400;
+const game_width = 420;
 const game_height = 256;
 const TILE_SIZE = 13;
 
 const ALLOW_ROTATE = false;
+
+const colors_selected = ui.makeColorSet([0.5, 1, 0.5, 1]);
 
 export function main() {
   if (engine.DEBUG) {
@@ -60,6 +62,15 @@ export function main() {
   gl.clearColor(0, 0.1, 0.3, 1);
   ui.scaleSizes(13 / 32);
   ui.setFontHeight(8);
+
+  const level_defs = {
+    short: { name: 'short', label: 'Short', default_seed: 'test', time_decrease: 15, initial_turns: 10, base_time: 8 },
+    med: { name: 'med', label: 'Medium', time_decrease: 25, initial_turns: 12, base_time: 8 },
+    long: { name: 'long', label: 'Long', time_decrease: 35, initial_turns: 15, base_time: 8 },
+    endless: { name: 'endless', label: 'Endless', initial_turns: 12, base_time: 8 },
+  };
+  let level_list = Object.keys(level_defs).map((key) => level_defs[key]);
+
 
   const M3W = 8;
   const M3H = 7;
@@ -116,9 +127,17 @@ export function main() {
     }
     return ship;
   }
-  function Game(seed) {
+  function Game(level, seed) {
     let game = this;
+    if (!seed) {
+      seed = String(random());
+    }
     let rand = game.rand = randCreate(mashString(seed));
+    game.level = level;
+    let level_def = level_defs[level];
+    game.level_def = level_def;
+    game.time_decrease = level_def.time_decrease;
+    game.base_time = level_def.base_time;
     game.m3board = [];
     for (let ii = 0; ii < M3H; ++ii) {
       let row = [];
@@ -135,7 +154,7 @@ export function main() {
     game.miss = 0;
     game.score = 0;
     game.actions = 0;
-    game.time_left = 10;
+    game.time_left = level_def.initial_turns || 10;
   }
 
   function getMatchShape(board, x0, y0) {
@@ -324,7 +343,7 @@ export function main() {
       }
     }
     return {
-      time: max(1, 8 - (ship.miss || 0)),
+      time: max(1, game.base_time - (ship.miss || 0)),
       done: !count[SHIP_EMPTY],
       score,
     };
@@ -342,6 +361,13 @@ export function main() {
       let idx = game.ships.indexOf(ship);
       game.ships[idx] = newShip(game);
       game.score += score.score;
+    }
+    if (game.time_decrease) {
+      --game.time_decrease;
+      if (!game.time_decrease) {
+        game.time_decrease = game.level_def.time_decrease;
+        game.base_time = max(1, game.base_time - 1);
+      }
     }
   }
 
@@ -429,7 +455,7 @@ export function main() {
       y: y0 + SHIPH * TILEADV,
       z: Z.UI + 20,
       align: font.ALIGN.HCENTER,
-      text: `Fill for +${score.time} Time`,
+      text: `Fill for +${score.time} Turns`,
       color,
     });
     font.draw({
@@ -484,36 +510,126 @@ export function main() {
     }
   }
 
-  function stateTest(dt) {
-    let side_w = (game_width - M3_VIS_W) / 2;
-    let side_x = M3X + M3_VIS_W;
-    let side_size = 24;
+  let left_mode = 'SCORE';
+  const PAD = 4;
+  const SCORE_PAD = PAD * 2;
+  const scores_bg = vec4(0.2, 0.2, 0.2, 1);
+  const SCORE_X = M3X + M3_VIS_W + SCORE_PAD;
+  const LEFT_BAR_W = (game_width - M3_VIS_W) / 2;
+  const LEFT_BAR_X = 0;
+  const LEFT_BUTTON_Y = SHIPY - TILEADV - ui.button_height;
+
+  function doHighScores(dt) {
+    const SCORE_W = game_width - SCORE_PAD - SCORE_X;
+    let x = SCORE_X;
+    let y = PAD;
+    let z = Z.UI;
+
+    y = PAD;
+    font.draw({ x, y, w: SCORE_W, align: font.ALIGN.HCENTER, text: 'High Scores' });
+    y += ui.font_height + 2;
+    ui.drawLine(x + 8, y, x + SCORE_W - 8, y, z, 1, 1, unit_vec);
+    y += 2;
+    const SCORE_H = SHIPY - TILE_PAD - y;
+    ui.drawRect(x, y, x + SCORE_W, y + SCORE_H, z - 1, scores_bg);
+    for (let ii = 0; ii < 10; ++ii) {
+      ui.print(null, x+2, y, z, 'Someone   1234');
+      y += ui.font_height;
+    }
+  }
+
+  function doLevelSelect() {
+    let x = PAD;
+    let y = PAD;
+    let z = Z.UI;
+    const BUTTON_W = 60;
+    font.draw({ x, y, w: BUTTON_W, align: font.ALIGN.HCENTER, text: 'Levels' });
+    y += ui.font_height;
+    ui.drawLine(x, y, x + BUTTON_W, y, z, 1, 1, unit_vec);
+    y += 4;
+
+    function newGame(def, seed) {
+      game = new Game(def.name, seed);
+    }
+
+    for (let ii = 0; ii < level_list.length; ++ii) {
+      let def = level_list[ii];
+      let colors;
+      if (def.name === game.level) {
+        colors = colors_selected;
+        ui.drawRect(x + BUTTON_W/2, y+2, SCORE_X + PAD, y + ui.button_height - 2,
+          z - 1, scores_bg);
+      }
+      if (ui.buttonText({ x, y, text: def.label, w: BUTTON_W, colors })) {
+        if (def.name === game.level) {
+          ui.modalDialog({
+            text: 'Do you wish to restart your current game?',
+            buttons: {
+              'yes': newGame.bind(null, def, null),
+              'no': null,
+            }
+          });
+        } else {
+          newGame(def, def.default_seed);
+        }
+      }
+      let desc_x = x + BUTTON_W + PAD;
+      font.draw({
+        x: desc_x, w: M3X - desc_x - PAD,
+        y, h: ui.button_height,
+        align: font.ALIGN.VCENTER | font.ALIGN.HFIT,
+        text: def.time_decrease ? `Diff+ every ${def.time_decrease} Turns` :
+          `Constant ${def.base_time} Turns per fill`,
+      });
+      y += ui.button_height + 2;
+    }
+
+    if (ui.buttonText({
+      x: LEFT_BAR_X + (LEFT_BAR_W - ui.button_width) / 2,
+      y: LEFT_BUTTON_Y,
+      text: 'Cancel',
+    })) {
+      left_mode = 'SCORE';
+    }
+  }
+
+  function doLeftBar() {
+    let side_size = 20;
     let time_color = game.time_left <= 2 ? 0xFF0000ff :
       game.time_left < 4 ? 0xFFFF00ff : 0xFFFFFFff;
     if (game.time_left === 1) {
       time_color = (time_color & 0xFFFFFF00) | floor((1 - abs(sin(engine.frame_timestamp * 0.005))) * 255);
     }
-    let y = 14;
+    let y = 10;
     font.draw({
-      x: side_x, w: side_w,
+      x: LEFT_BAR_X, w: LEFT_BAR_W,
       y,
       align: font.ALIGN.HCENTER,
-      text: 'Time Left',
+      text: 'Turns Left',
       size: side_size,
       color: time_color,
     });
     y += side_size;
     font.draw({
-      x: side_x, w: side_w,
+      x: LEFT_BAR_X, w: LEFT_BAR_W,
       y,
       align: font.ALIGN.HCENTER,
       text: String(game.time_left),
       size: side_size,
       color: time_color,
     });
-    y += side_size + 4;
+    y += side_size;
     font.draw({
-      x: side_x, w: side_w,
+      x: LEFT_BAR_X, w: LEFT_BAR_W,
+      y: y,
+      align: font.ALIGN.HCENTER,
+      text: `Turns Survived: ${game.actions}`,
+      color: 0x808080ff,
+    });
+    y += ui.font_height;
+    y += 4;
+    font.draw({
+      x: LEFT_BAR_X, w: LEFT_BAR_W,
       y,
       align: font.ALIGN.HCENTER,
       text: 'Score',
@@ -521,13 +637,29 @@ export function main() {
     });
     y += side_size;
     font.draw({
-      x: side_x, w: side_w,
+      x: LEFT_BAR_X, w: LEFT_BAR_W,
       y,
       align: font.ALIGN.HCENTER,
       text: String(game.score),
       size: side_size,
     });
     y += side_size;
+
+    if (ui.buttonText({
+      x: LEFT_BAR_X + (LEFT_BAR_W - ui.button_width) / 2,
+      y: LEFT_BUTTON_Y,
+      text: 'New Game',
+    })) {
+      left_mode = 'NEWGAME';
+    }
+  }
+
+  function stateTest(dt) {
+    if (left_mode === 'SCORE') {
+      doLeftBar();
+    } else {
+      doLevelSelect();
+    }
 
     if (!game.time_left) {
       font.draw({
@@ -546,16 +678,26 @@ export function main() {
 
     font.draw({
       x: 0, w: game_width,
-      y: game_height - 12,
-      z: Z.MODAL + 1,
+      y: game_height - 10 - ui.font_height,
       align: font.ALIGN.HCENTER,
-      text: `Total Score: ${game.score}  Actions: ${game.actions}  Misses: ${game.miss}`,
+      text: `Filling a hole rewards ${game.base_time} turns minus any misses`,
       color: 0x808080ff,
     });
+    if (game.time_decrease && game.base_time > 1) {
+      font.draw({
+        x: 0, w: game_width,
+        y: game_height - 10,
+        align: font.ALIGN.HCENTER,
+        text: `This reduces to ${game.base_time - 1} in ${game.time_decrease} turns`,
+        color: 0x808080ff,
+      });
+    }
+
+    doHighScores(dt);
   }
 
   function testInit(dt) {
-    game = new Game('test1');
+    game = new Game(level_defs.short.name, level_defs.short.default_seed);
     engine.setState(stateTest);
     stateTest(dt);
   }

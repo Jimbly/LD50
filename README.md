@@ -1,4 +1,4 @@
-LD50 - Theam TBD
+LD50 - Delay the inevitable
 ============================
 
 Ludum Dare 50 Entry by Jimbly - "TBD"
@@ -14,7 +14,11 @@ Next:
     Inevitable Mode - get 1 less time per 2 ships (or, game length options?)
     Endless Mode - 8 per ship seems solid
   Theming
+    - simple, with rising water in background? waves, bubbles, stormy above, gradient sky
+    - pixel art ships and goods?
+    - pure abstract?
 Feedback:
+  Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
   JK did not discover you could place things such that you get a miss - kept just choosing small pieces
 Polish:
   Slide new ships in/out
