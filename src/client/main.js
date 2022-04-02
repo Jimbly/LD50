@@ -6,7 +6,9 @@ const engine = require('glov/client/engine.js');
 const input = require('glov/client/input.js');
 const { abs, floor, max, min, random, round, sin } = Math;
 const net = require('glov/client/net.js');
+const pico8 = require('glov/client/pico8.js');
 const { randCreate, mashString } = require('glov/common/rand_alea.js');
+const score_system = require('glov/client/score.js');
 // const { createSprite } = require('glov/client/sprites.js');
 const ui = require('glov/client/ui.js');
 const { clone } = require('glov/common/util.js');
@@ -64,13 +66,45 @@ export function main() {
   ui.setFontHeight(8);
 
   const level_defs = {
-    short: { name: 'short', label: 'Short', default_seed: 'test', time_decrease: 15, initial_turns: 10, base_time: 8 },
-    med: { name: 'med', label: 'Medium', time_decrease: 25, initial_turns: 12, base_time: 8 },
-    long: { name: 'long', label: 'Long', time_decrease: 35, initial_turns: 15, base_time: 8 },
-    endless: { name: 'endless', label: 'Endless', initial_turns: 12, base_time: 8 },
+    short: {
+      name: 'short', display_name: 'Short', default_seed: 'test',
+      time_decrease: 15, initial_turns: 10, base_time: 8,
+    },
+    med: {
+      name: 'med', display_name: 'Medium',
+      time_decrease: 25, initial_turns: 12, base_time: 8,
+    },
+    long: {
+      name: 'long', display_name: 'Long',
+      time_decrease: 35, initial_turns: 15, base_time: 8,
+    },
+    endless: {
+      name: 'endless', display_name: 'Endless',
+      initial_turns: 12, base_time: 8,
+    },
   };
   let level_list = Object.keys(level_defs).map((key) => level_defs[key]);
+  for (let ii = 0; ii < level_list.length; ++ii) {
+    level_list[ii].idx = ii;
+  }
 
+  function encodeScore(score) {
+    let actions = min(score.actions, 99999);
+    return (score.score || 0) * 100000 + actions;
+  }
+
+  function parseScore(value) {
+    let score = floor(value / 100000);
+    value -= score * 100000;
+    let actions = value;
+    return {
+      score,
+      actions,
+    };
+  }
+
+  score_system.init(encodeScore, parseScore, level_list, 'LD50');
+  score_system.updateHighScores();
 
   const M3W = 8;
   const M3H = 7;
@@ -362,6 +396,9 @@ export function main() {
       game.ships[idx] = newShip(game);
       game.score += score.score;
     }
+    score_system.setScore(game.level_def.idx,
+      { score: game.score, actions: game.actions }
+    );
     if (game.time_decrease) {
       --game.time_decrease;
       if (!game.time_decrease) {
@@ -518,24 +555,123 @@ export function main() {
   const LEFT_BAR_W = (game_width - M3_VIS_W) / 2;
   const LEFT_BAR_X = 0;
   const LEFT_BUTTON_Y = SHIPY - TILEADV - ui.button_height;
+  const SCORE_W = game_width - SCORE_PAD - SCORE_X;
 
-  function doHighScores(dt) {
-    const SCORE_W = game_width - SCORE_PAD - SCORE_X;
+  let scores_edit_box;
+  function doHighScores() {
     let x = SCORE_X;
     let y = PAD;
     let z = Z.UI;
 
-    y = PAD;
-    font.draw({ x, y, w: SCORE_W, align: font.ALIGN.HCENTER, text: 'High Scores' });
-    y += ui.font_height + 2;
+    let need_name = score_system.player_name.indexOf('Anonymous') === 0;
+    let max_scores = need_name ? 9 : 13; // plus 1 for own score if not on list
+    let { level_def } = game;
+    let width = SCORE_W;
+    let size = ui.font_height;
+    let header_size = size; // * 2
+    let pad = size;
+    font.drawSizedAligned(null, x, y, z, header_size, font.ALIGN.HCENTERFIT, width, 0, '       High Scores      Turns');
+    y += header_size + 2;
     ui.drawLine(x + 8, y, x + SCORE_W - 8, y, z, 1, 1, unit_vec);
     y += 2;
-    const SCORE_H = SHIPY - TILE_PAD - y;
-    ui.drawRect(x, y, x + SCORE_W, y + SCORE_H, z - 1, scores_bg);
-    for (let ii = 0; ii < 10; ++ii) {
-      ui.print(null, x+2, y, z, 'Someone   1234');
-      y += ui.font_height;
+    let level_id = level_def.name;
+    let scores = score_system.high_scores[level_id];
+    let score_style = font.styleColored(null, pico8.font_colors[7]);
+    if (!scores) {
+      font.drawSizedAligned(score_style, x, y, z, size, font.ALIGN.HCENTERFIT, width, 0,
+        'Loading...');
+      return;
     }
+    let widths = [10, 64, 32, 24];
+    let widths_total = 0;
+    for (let ii = 0; ii < widths.length; ++ii) {
+      widths_total += widths[ii];
+    }
+    let set_pad = size / 2;
+    for (let ii = 0; ii < widths.length; ++ii) {
+      widths[ii] *= (width - set_pad * (widths.length - 1)) / widths_total;
+    }
+    let align = [
+      font.ALIGN.HFIT | font.ALIGN.HRIGHT,
+      font.ALIGN.HFIT,
+      font.ALIGN.HFIT | font.ALIGN.HCENTER,
+      font.ALIGN.HFIT | font.ALIGN.HCENTER,
+    ];
+    function drawSet(arr, style, header) {
+      let xx = x;
+      for (let ii = 0; ii < arr.length; ++ii) {
+        let str = String(arr[ii]);
+        font.drawSizedAligned(style, xx, y, z, size, align[ii], widths[ii], 0, str);
+        xx += widths[ii] + set_pad;
+      }
+      y += size;
+    }
+    // drawSet(['', 'Name', 'Score', 'Turns'], font.styleColored(null, pico8.font_colors[6]), true);
+    // y += 4;
+    let found_me = false;
+    for (let ii = 0; ii < scores.length/* * 20*/; ++ii) {
+      let s = scores[ii % scores.length];
+      let style = score_style;
+      let drawme = false;
+      if (s.name === score_system.player_name && !found_me) {
+        style = font.styleColored(null, pico8.font_colors[11]);
+        found_me = true;
+        drawme = true;
+      }
+      if (ii < max_scores || drawme) {
+        drawSet([
+          `#${ii+1}`, score_system.formatName(s), `${s.score.score}`,
+          s.score.actions
+        ], style);
+      }
+    }
+    y += set_pad;
+    if (found_me && need_name) {
+      if (!scores_edit_box) {
+        scores_edit_box = ui.createEditBox({
+          z,
+          w: game_width / 4,
+          placeholder: 'Enter player name',
+        });
+        if (!need_name) {
+          scores_edit_box.setText(score_system.player_name);
+        }
+      }
+
+      let submit = scores_edit_box.run({
+        x,
+        y,
+      }) === scores_edit_box.SUBMIT;
+
+      if (ui.buttonText({
+        x: x + scores_edit_box.w + 4,
+        y: y - size * 0.25,
+        z,
+        w: size * 4,
+        h: ui.button_height,
+        text: 'Save'
+      }) || submit) {
+        // scores_edit_box.text
+        if (scores_edit_box.text) {
+          score_system.updatePlayerName(scores_edit_box.text);
+        }
+      }
+      y += size;
+    }
+
+    y += pad;
+
+    // ui.panel({
+    //   x: x - pad,
+    //   w: game_width / 2 + pad * 2,
+    //   y: y0 - pad,
+    //   h: y - y0 + pad * 2,
+    //   z: z - 1,
+    //   color: vec4(0, 0, 0, 1),
+    // });
+
+    // ui.menuUp();
+
   }
 
   function doLevelSelect() {
@@ -560,7 +696,7 @@ export function main() {
         ui.drawRect(x + BUTTON_W/2, y+2, SCORE_X + PAD, y + ui.button_height - 2,
           z - 1, scores_bg);
       }
-      if (ui.buttonText({ x, y, text: def.label, w: BUTTON_W, colors })) {
+      if (ui.buttonText({ x, y, text: def.display_name, w: BUTTON_W, colors })) {
         if (def.name === game.level) {
           ui.modalDialog({
             text: 'Do you wish to restart your current game?',

@@ -9,10 +9,7 @@ Ludum Dare 50 Entry by Jimbly - "TBD"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
-  High score list in upper left
-  Multiple levels / difficulties?  Just different seeds?
-    Inevitable Mode - get 1 less time per 2 ships (or, game length options?)
-    Endless Mode - 8 per ship seems solid
+  High score list
   Theming
     - simple, with rising water in background? waves, bubbles, stormy above, gradient sky
     - pixel art ships and goods?
@@ -21,6 +18,8 @@ Feedback:
   Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
   JK did not discover you could place things such that you get a miss - kept just choosing small pieces
 Polish:
+  Simplify UI - hide high scores completely initially, otherwise have toggle to show them?  Auto-show when you get over X points?
+     Hide everything except the top and a single hole at first!
   Slide new ships in/out
   Perfect! Great! Good! popups upon completing ship
   Animate time ticking up/down
