@@ -714,7 +714,8 @@ export function main() {
     let size = ui.font_height;
     let header_size = size; // * 2
     let pad = size;
-    font.drawSizedAligned(null, x, y, z, header_size, font.ALIGN.HCENTERFIT, width, 0, '       High Scores      Turns');
+    font.drawSizedAligned(null, x, y, z, header_size, font.ALIGN.HCENTERFIT, width, 0,
+      '            High Scores                  Turns');
     y += header_size + 2;
     ui.drawLine(x + 8, y, x + SCORE_W - 8, y, z, LINE_W, 1, unit_vec);
     y += 2;
