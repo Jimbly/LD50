@@ -21,7 +21,6 @@ Next:
     - bubbles
     - stormy above
 Polish:
-  Also do floater for number of turns gained (3 floaters?)
   Panel GFX and color for restart dialog
   Sound FX
   Music

@@ -197,7 +197,7 @@ export function main() {
 
   const M3W = 8;
   const M3H = 7;
-  const M3VARIETY = 1;
+  const M3VARIETY = 3;
   const M3COLORS = [
     // pico8.colors[8],
     // pico8.colors[11],
@@ -1519,6 +1519,8 @@ export function main() {
 
     if (ftue < FTUE_DONE) {
       doHelp();
+    } else if (left_mode === 'NEWGAME') {
+      doHighScores();
     } else {
       let x = game_width - ui.button_height;
       let y = 0;
