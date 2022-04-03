@@ -9,6 +9,8 @@ Ludum Dare 50 Entry by Jimbly - "TBD"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
+  Simplify UI - hide high scores completely initially, otherwise have toggle to show them?  Auto-show when you get over X points?
+     Hide everything except the top and a single hole at first!
   Theming
     - bubbles
     - stormy above
@@ -16,13 +18,8 @@ Next:
     Set this just for some difficulty levels
 Feedback:
   Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
-  JK did not discover you could place things such that you get a miss - kept just choosing small pieces
 Polish:
-  Simplify UI - hide high scores completely initially, otherwise have toggle to show them?  Auto-show when you get over X points?
-     Hide everything except the top and a single hole at first!
   Reasonable default seeds for all difficulty levels
-  Slide new ships in/out
-  Perfect! Great! Good! popups upon completing ship
   Animate time ticking up/down
   Maybe allow placing large pieces straddling two ships
   Add fullscreen button in corner

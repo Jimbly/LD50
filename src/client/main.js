@@ -2,6 +2,7 @@
 const local_storage = require('glov/client/local_storage.js');
 local_storage.setStoragePrefix('ld50'); // Before requiring anything else that might load from this
 
+const { createAnimationSequencer } = require('glov/client/animation.js');
 const camera2d = require('glov/client/camera2d.js');
 const engine = require('glov/client/engine.js');
 const input = require('glov/client/input.js');
@@ -13,7 +14,7 @@ const score_system = require('glov/client/score.js');
 const { createSprite, queueraw4 } = require('glov/client/sprites.js');
 const textures = require('glov/client/textures.js');
 const ui = require('glov/client/ui.js');
-const { clamp, clone, easeOut, plural } = require('glov/common/util.js');
+const { clamp, clone, easeIn, easeOut, plural, ridx } = require('glov/common/util.js');
 const { unit_vec, vec2, vec4 } = require('glov/common/vmath.js');
 
 window.Z = window.Z || {};
@@ -308,6 +309,10 @@ export function main() {
     game.actions = 0;
     game.time_left = level_def.initial_turns || 10;
     game.dismissed = false;
+    // For fading in/out
+    game.old_ships = [];
+    game.ship_anims = [];
+    game.ship_alpha = [];
   }
   const SER_FIELDS = [
     'level',
@@ -320,6 +325,7 @@ export function main() {
     'dismissed',
     'time_decrease',
     'num_ships',
+    'base_time',
   ];
   function gameFromJSON(obj) {
     let game = new Game(obj.level);
@@ -397,23 +403,23 @@ export function main() {
 
   let game;
 
-  let anim = {};
+  let m3anim = {};
   let anim_offs;
 
   function m3clearTile(board, x, y) {
     anim_offs[x] = (anim_offs[x] || 0) + 1;
     while (y > 0) {
-      if (anim[[x,y-1]]) {
-        anim[[x,y]] = anim[[x,y-1]] + 1;
-        delete anim[[x,y-1]];
+      if (m3anim[[x,y-1]]) {
+        m3anim[[x,y]] = m3anim[[x,y-1]] + 1;
+        delete m3anim[[x,y-1]];
       } else {
-        anim[[x,y]] = 1;
+        m3anim[[x,y]] = 1;
       }
       board[y][x] = board[y-1][x];
       y--;
     }
     board[0][x] = game.rand.range(M3VARIETY);
-    anim[[x,0]] = anim_offs[x];
+    m3anim[[x,0]] = anim_offs[x];
   }
 
   const TILE_PAD = 2;
@@ -444,30 +450,38 @@ export function main() {
     saveGame(game);
   }
 
-  function drawTile(x, y, z, tile) {
+  let color_temp = vec4(1,1,1,1);
+  function drawTile(x, y, z, tile, alpha) {
     let color = M3COLORS[tile] || SHIP_COLORS[tile];
     if (!color) {
       return;
     }
+    if (alpha === undefined) {
+      alpha = 1;
+    }
+    color_temp[3] = alpha;
     sprites.tiles.draw({
       x: x - TILE_PAD/2, y: y - TILE_PAD/2,
       w: TILEADV, h: TILEADV,
       z: z - 1,
       frame: 0,
+      color: color_temp,
     });
+    color[3] = alpha;
     ui.drawRect(x, y, x + TILE_SIZE, y + TILE_SIZE, z, color);
+    color[3] = 1;
   }
 
   const M3_VIS_W = TILEADV * M3W - TILE_PAD;
   const M3X = (game_width - M3_VIS_W) / 2;
   const M3Y = TILE_SIZE;
   function doMatch3() {
-    for (let key in anim) {
-      let v = anim[key] - engine.frame_dt * 0.01;
+    for (let key in m3anim) {
+      let v = m3anim[key] - engine.frame_dt * 0.01;
       if (v < 0) {
-        delete anim[key];
+        delete m3anim[key];
       } else {
-        anim[key] = v;
+        m3anim[key] = v;
       }
     }
     let z = Z.UI;
@@ -479,7 +493,7 @@ export function main() {
         let tile = row[xx];
         let x = M3X + xx * TILEADV;
         let draw_y = y;
-        let animv = anim[[xx,yy]] || 0;
+        let animv = m3anim[[xx,yy]] || 0;
         draw_y -= animv * TILEADV;
         drawTile(x, draw_y, z, tile);
         let click_param = {
@@ -561,6 +575,92 @@ export function main() {
     };
   }
 
+  let floaters = [];
+
+  function floaterAdd(ship_idx, msg, style) {
+    floaters.push({
+      ship_idx, msg,
+      time: engine.frame_timestamp,
+      style,
+    });
+  }
+
+  const FLOATER_TIME = 1000;
+  function floatersDraw(idx, x, y, w) {
+    for (let ii = floaters.length - 1; ii >= 0; --ii) {
+      let floater = floaters[ii];
+      let dt = engine.frame_timestamp - floater.time;
+      let progress = dt / FLOATER_TIME;
+      if (progress >= 1) {
+        ridx(floaters, ii);
+        continue;
+      }
+      if (floater.ship_idx === idx) {
+        font.draw({
+          x, w,
+          y: y - easeOut(progress, 2) * 20,
+          z: Z.UI2 + 10,
+          align: font.ALIGN.HCENTER,
+          text: floater.msg,
+          size: ui.font_size * 2,
+          style: floater.style,
+          alpha: 1 - progress,
+        });
+      }
+    }
+  }
+
+  let style_floater = font.style(null, {
+    color: 0x000000ff,
+    outline_color: 0x000000ff,
+    outline_width: 2,
+    glow_color: 0xFFFFFF80,
+    glow_outer: 5,
+  });
+  const style_floater_perfect = font.style(style_floater, {
+    color: 0xFFFF00ff,
+    outline_color: 0xDDDDDDff,
+    glow_color: 0x00FF00ff,
+  });
+  const style_floater_good = font.style(style_floater, {
+    color: 0x00FF00ff,
+    outline_color: 0x00FF00ff,
+    glow_color: 0x002000ff,
+  });
+  const style_floater_fine = font.style(style_floater, {
+    color: 0x0000FFff,
+    outline_color: 0x0000FFff,
+    glow_color: 0x0000FFff,
+  });
+
+  function removeShip(ship, score) {
+    game.time_left += score.time;
+    let idx = game.ships.indexOf(ship);
+    game.old_ships[idx] = ship;
+    game.ships[idx] = newShip(game);
+    game.score += score.score;
+    let anim = game.ship_anims[idx] = createAnimationSequencer();
+    game.ship_alpha[idx] = 1;
+    let t = anim.add(0, 1000, (progress) => {
+      game.ship_alpha[idx] = easeIn(1 - progress, 2);
+    });
+    anim.add(t, 300, (progress) => {
+      game.old_ships[idx] = null;
+      game.ship_alpha[idx] = easeOut(progress, 2);
+    });
+    if (ship.miss < 1) {
+      floaterAdd(idx, 'Perfect!', style_floater_perfect);
+    } else if (ship.miss < 2) {
+      floaterAdd(idx, 'Excellent!', style_floater_good);
+    } else if (ship.miss < 3) {
+      floaterAdd(idx, 'Good!', style_floater_good);
+    } else if (ship.miss < 4) {
+      floaterAdd(idx, 'Fine!', style_floater_fine);
+    } else {
+      floaterAdd(idx, 'Botched!', style_floater);
+    }
+  }
+
   function placePiece(ship) {
     // actual pieces placed while drawing
     game.actions++;
@@ -569,10 +669,7 @@ export function main() {
     let score = shipCalcScore(ship);
     if (score.done) {
       // remove and score ship
-      game.time_left += score.time;
-      let idx = game.ships.indexOf(ship);
-      game.ships[idx] = newShip(game);
-      game.score += score.score;
+      removeShip(ship, score);
     }
     score_system.setScore(game.level_def.idx,
       { score: game.score, actions: game.actions }
@@ -597,7 +694,7 @@ export function main() {
   const SHIPX = (game_width - (SHIP_VIS_W * NUM_SHIPS - SHIP_PAD)) / 2;
   const SHIPY = M3Y + TILEADV * M3H + TILE_SIZE;
   let mouse_pos = vec2();
-  function doShip(x0, y0, ship, do_piece) {
+  function doShip(alpha, x0, y0, ship, do_piece) {
     let z = Z.UI;
     let { piece } = game;
     let piece_info = null;
@@ -666,7 +763,7 @@ export function main() {
       for (let xx = 0; xx < row.length; ++xx) {
         let tile = row[xx];
         let x = x0 + xx * TILEADV;
-        drawTile(x, y, z, tile);
+        drawTile(x, y, z, tile, alpha);
       }
     }
     let orig_score = shipCalcScore(ship);
@@ -677,12 +774,13 @@ export function main() {
       z: Z.UI + 20,
       align: font.ALIGN.HCENTER,
       text: orig_score.time !== score.time ?
-        `Fill for +${orig_score.time} → +${score.time} Turns` :
-        `Fill for +${score.time} Turns`,
+        `+${orig_score.time} → +${score.time} Turns` :
+        `+${score.time} Turns`,
       style:
         score.time < orig_score.time ? style_fill_help_worse :
         score.done ? style_fill_help_done :
         style_fill_help,
+      alpha,
     });
     font.draw({
       x: x0, w: SHIP_VIS_W - SHIP_PAD,
@@ -696,6 +794,7 @@ export function main() {
         score.score < orig_score.score ? style_fill_help_worse :
         score.done ? style_fill_help_done :
         style_fill_help,
+      alpha,
     });
     return piece_info;
   }
@@ -712,7 +811,7 @@ export function main() {
 
   let left_mode = 'SCORE';
   function doShips() {
-    let { ships, piece } = game;
+    let { ships, piece, old_ships, ship_alpha, ship_anims } = game;
     let pos = input.mousePos(mouse_pos);
     let piece_ship = -1;
     let do_piece = piece && input.mouse_ever_moved &&
@@ -733,9 +832,39 @@ export function main() {
         piece_ship = 2;
       }
     }
+
+    font.draw({
+      x: 4, w: 40,
+      y: SHIPY + SHIPH * TILEADV, h: ui.font_height * 2 + 1,
+      z: Z.UI + 20,
+      align: font.ALIGN.HVCENTER | font.ALIGN.HWRAP,
+      text: 'Patch\nreward:',
+      style: style_fill_help,
+    });
+
     let piece_info;
     for (let ii = 0; ii < ships.length; ++ii) {
-      piece_info = doShip(SHIPX + ii * SHIP_VIS_W, SHIPY, ships[ii], piece_ship === ii) || piece_info;
+      let ship = ships[ii];
+      let piece_on_this_ship = piece_ship === ii;
+      let alpha = 1;
+      if (ship_anims[ii]) {
+        if (!ship_anims[ii].update(engine.frame_dt)) {
+          ship_anims[ii] = null;
+        }
+      }
+      let yoffs = 0;
+      if (old_ships[ii]) {
+        piece_on_this_ship = false;
+        ship = old_ships[ii];
+        alpha = ship_alpha[ii];
+        yoffs = (1-alpha) * SHIP_VIS_W;
+      } else if (ship_anims[ii]) {
+        alpha = ship_alpha[ii];
+      }
+      let ship_x = SHIPX + ii * SHIP_VIS_W;
+      floatersDraw(ii, ship_x, SHIPY, SHIP_VIS_W - SHIP_PAD - TILE_PAD);
+      piece_info = doShip(alpha, ship_x, SHIPY + yoffs,
+        ship, piece_on_this_ship) || piece_info;
     }
     if (do_piece) {
       let { members, tile, xoffs, yoffs } = piece;
@@ -1113,6 +1242,7 @@ export function main() {
   // const water_color = vec4(0.016, 0.047, 0.157, 1);
   const WAVE_H = 10;
   const WAVES = [
+    [0.021, 0.2, 1.2],
     [0.039, 0.1, 1],
     [0.087, 0.13, 0.25],
     [0.027, -0.18, 0.12],
