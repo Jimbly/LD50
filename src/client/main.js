@@ -2,6 +2,8 @@
 const local_storage = require('glov/client/local_storage.js');
 local_storage.setStoragePrefix('ld50'); // Before requiring anything else that might load from this
 
+// Useful chars: ⚡ ← →
+
 const { createAnimationSequencer } = require('glov/client/animation.js');
 const camera2d = require('glov/client/camera2d.js');
 const engine = require('glov/client/engine.js');
@@ -705,7 +707,7 @@ export function main() {
     } else {
       floaterAdd(idx, 'Botched!', style_floater);
     }
-    floaterAdd(idx, `+${score.time} Turns`, style_floater_good);
+    floaterAdd(idx, `+${score.time}⚡`, style_floater_good);
     if (ftue >= FTUE_SHOW_SCORE) {
       floaterAdd(idx, `+${score.score} Points`, style_floater_good);
     }
@@ -830,8 +832,8 @@ export function main() {
       z: Z.UI + 20,
       align: font.ALIGN.HCENTER,
       text: orig_score.time !== score.time ?
-        `+${orig_score.time} → +${score.time} Turns` :
-        `+${score.time} Turns`,
+        `+${orig_score.time} → +${score.time}⚡` :
+        `+${score.time}⚡`,
       style:
         score.time < orig_score.time ? style_fill_help_worse :
         score.done ? style_fill_help_done :
@@ -1007,7 +1009,7 @@ export function main() {
     let header_size = size; // * 2
     let pad = size;
     font.drawSizedAligned(style_high_scores, x, y, z, header_size, font.ALIGN.HCENTERFIT, width, 0,
-      '              High Scores                    Turns');
+      'High Scores');
     y += header_size + 2;
     ui.drawLine(x + 8, y, x + SCORE_W - 8, y, z, LINE_W, 1, unit_vec);
     y += 2;
@@ -1058,7 +1060,7 @@ export function main() {
       if (ii < max_scores || drawme) {
         drawSet([
           `#${ii+1}`, score_system.formatName(s), `${s.score.score}`,
-          s.score.actions
+          `${s.score.actions}⚡`
         ], style);
       }
     }
@@ -1180,8 +1182,8 @@ export function main() {
         y, h: ui.button_height,
         z,
         align: font.ALIGN.VCENTER | font.ALIGN.HFIT,
-        text: def.time_decrease ? `Difficulty+ every ${def.time_decrease} Turns` :
-          `Constant ${def.base_time} Turns per fill`,
+        text: def.time_decrease ? `Difficulty+ every ${def.time_decrease}⚡` :
+          `Constant ${def.base_time}⚡ per fix`,
       });
       y += ui.button_height + 2;
     }
@@ -1238,8 +1240,8 @@ export function main() {
         y,
         align: font.ALIGN.HCENTER,
         text: action_turn_preview ?
-          `${game.time_left} → ${preview_time_left}` :
-          String(game.time_left),
+          `${game.time_left}⚡ → ${preview_time_left}⚡` :
+          `${game.time_left}⚡`,
         size: side_size,
         style: style_score,
         color: time_color,
@@ -1251,7 +1253,7 @@ export function main() {
       x: LEFT_BAR_X, w: LEFT_BAR_W,
       y: y,
       align: font.ALIGN.HCENTER,
-      text: `Survived: ${game.actions}${game.time_left ? '' : ' Turns'}`,
+      text: `Survived: ${game.actions}${game.time_left ? '' : '⚡'}`,
       style: style_bottom_hint,
     });
     y += ui.font_height;
@@ -1454,7 +1456,7 @@ export function main() {
     //   x: 0, w: game_width,
     //   y: game_height - 10 - last_size,
     //   align: font.ALIGN.HCENTER,
-    //   text: `Completely plugging a leak rewards ${game.base_time} Turns`,
+    //   text: `Completely plugging a leak rewards ${game.base_time}⚡`,
     //   size: last_size,
     //   style: style_bottom_hint,
     // });
@@ -1463,8 +1465,8 @@ export function main() {
         x: 0, w: game_width,
         y: game_height - 10,
         align: font.ALIGN.HCENTER,
-        text: `Reward for plugging a leak reduces to ${game.base_time - 1} in` +
-          ` ${game.time_decrease} ${plural(game.time_decrease, 'Turn')}`,
+        text: `Reward for plugging a leak reduces to ${game.base_time - 1}⚡ in` +
+          ` ${game.time_decrease}⚡`,
         size: last_size,
         style: style_bottom_hint,
       });

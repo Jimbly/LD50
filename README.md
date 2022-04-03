@@ -10,11 +10,10 @@ Start with: `npm start` (after running `npm i` once)
 
 Next:
   Tutorial text (FTUE-based with forward/back arrows) in upper right
-  Your ship is sinking! Quick, repair it using the cargo of match three games!
+    Your ship is sinking! Quick, repair it using the cargo of match three games!
   Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
     Short level felt too hard for first game: survived only 44 turns
     What if it doesn't reduce the reward?
-  Use a clock icon instead of the word Turn
   Reasonable default seeds for all difficulty levels
     Try 4 colors instead of 3
       Set this just for some difficulty levels
