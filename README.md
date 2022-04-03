@@ -16,14 +16,11 @@ Next:
       66 turns, 31 turns left, 13 leaks plugged
         116 turns allowed, 19 penalty, 85 turns actually used
         Adjusting down to 7 => 103 turns allowed, would have 13 fewer extra turns
-  Theming
-    - bubbles
-    - stormy above
 Polish:
   Animate time ticking up/down
-  Maybe allow placing large pieces straddling two ships
   Splash screen / title / name / logo / intro blurb?
-  Add fullscreen button in corner
+Fix:
+  Touch controls
 
 Ideas:
 

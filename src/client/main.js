@@ -7,6 +7,7 @@ local_storage.setStoragePrefix('ld50'); // Before requiring anything else that m
 const { createAnimationSequencer } = require('glov/client/animation.js');
 const camera2d = require('glov/client/camera2d.js');
 const engine = require('glov/client/engine.js');
+const { fscreenAvailable, fscreenActive, fscreenEnter, fscreenExit } = require('glov/client/fscreen.js');
 const input = require('glov/client/input.js');
 const { abs, floor, max, min, random, round, sin, sqrt } = Math;
 const net = require('glov/client/net.js');
@@ -24,6 +25,7 @@ const { unit_vec, vec2, v3set, vec4, v4set } = require('glov/common/vmath.js');
 window.Z = window.Z || {};
 Z.BACKGROUND = 1;
 Z.WAVES = 3;
+Z.BUBBLES = 5;
 Z.SPRITES = 10;
 Z.PARTICLES = 20;
 Z.UI_TEST = 200;
@@ -105,6 +107,11 @@ export function main() {
     wrap_t: gl.CLAMP_TO_EDGE,
     origin: vec2(0.5, 0.5),
   });
+  sprites.bubble = createSprite({
+    name: 'bubble',
+    wrap_s: gl.CLAMP_TO_EDGE,
+    wrap_t: gl.CLAMP_TO_EDGE,
+  });
   sprites.tiles = createSprite({
     name: 'tile',
     ws: [128,128,128,128],
@@ -125,7 +132,7 @@ export function main() {
   sprites.toggles = createSprite({
     name: 'toggles',
     ws: [128,128],
-    hs: [128,128],
+    hs: [128,128,128,128],
   });
 
   const level_defs = {
@@ -1489,7 +1496,7 @@ export function main() {
     'song3-120.mp3',
   ];
   function updateMusic(level) {
-    if (!soundResumed()) {
+    if (!soundResumed() || !settings.music) {
       return;
     }
     let time_since_music_change = engine.frame_timestamp - last_music_time;
@@ -1558,8 +1565,12 @@ export function main() {
     return ret;
   }
   const WAVE_TOP_H = 3;
-  const wave_color_regular = [0.043, 0.129, 0.424,1];
-  const wave_color_final = [0.3, 0.05, 0.1,1];
+  const wave_color_regular = vec4(0.043, 0.129, 0.424,1);
+  const wave_color_final = vec4(0.3, 0.05, 0.1,1);
+  const bubble_color = vec4(0.8, 0.9, 1.0, 1);
+  const BUBBLE_ALPHA = 0.125;
+  const MAX_BUBBLES = 100;
+  let bubbles = [];
   function drawWaves() {
     let x0 = camera2d.x0Real();
     let x1 = camera2d.x1Real();
@@ -1595,6 +1606,40 @@ export function main() {
         unit_vec);
       last_x = xx1;
       last_wave = wave;
+    }
+
+    let is_startup = bubbles.length === 0;
+    while (bubbles.length < MAX_BUBBLES) {
+      bubbles.push({
+        x: random(),
+        y: (is_startup ? random() : 1) * 1.2,
+        r: (1 + random()) * 5,
+        speed: (1 + random()) * 0.0001,
+        a: 0.5 + random() * 0.5,
+      });
+    }
+    let h = camera2d.hReal();
+    let cam_y0 = camera2d.y0Real();
+    for (let ii = bubbles.length - 1; ii >= 0; --ii) {
+      let bubble = bubbles[ii];
+      bubble.y -= bubble.speed * engine.frame_dt;
+      if (bubble.y < 0) {
+        ridx(bubbles, ii);
+        continue;
+      }
+      let y = cam_y0 + h * bubble.y;
+      let x = x0 + bubble.x * (x1 - x0) + sin(engine.frame_timestamp * 0.001 + bubble.r) * 4;
+      let wy = y0 + waveAt(x);
+      let dist_to_wave = y - wy;
+      if (dist_to_wave < 0) {
+        continue;
+      }
+      bubble_color[3] = easeOut(min(dist_to_wave * 0.005, 1), 2) * BUBBLE_ALPHA * bubble.a;
+      sprites.bubble.draw({
+        x, y, z: Z.BUBBLES,
+        w: bubble.r, h: bubble.r,
+        color: bubble_color,
+      });
     }
   }
 
@@ -1669,16 +1714,27 @@ export function main() {
     }
 
     {
-      let y = 0;
       let w = ui.button_height;
       {
-        let x = M3X + M3_VIS_W + TILE_PAD;
+        let y = game_height - w;
+        let x = game_width - ui.button_height;
         if (ui.buttonImage({ x, y, w, img: sprites.toggles, frame: settings.music ? 0 : 1 })) {
           settings.set('music', 1 - settings.music);
         }
-        x += ui.button_height + 2;
+        x -= ui.button_height + 2;
         if (ui.buttonImage({ x, y, w, img: sprites.toggles, frame: settings.sound ? 2 : 3 })) {
           settings.set('sound', 1 - settings.sound);
+        }
+        x -= ui.button_height + 2;
+        if (fscreenAvailable()) {
+          if (ui.buttonImage({ x, y, w, img: sprites.toggles, frame: 4 })) {
+            if (fscreenActive()) {
+              fscreenExit();
+            } else {
+              fscreenEnter();
+            }
+          }
+          x -= ui.button_height + 2;
         }
       }
       if (ftue < FTUE_DONE) {
@@ -1687,6 +1743,7 @@ export function main() {
         doHighScores();
       } else {
         let x = game_width - ui.button_height;
+        let y = 0;
         if (ui.buttonText({ x, y, w, text: right_mode === 'HIGHSCORES' ? '?' : 'X' })) {
           if (right_mode === 'HIGHSCORES') {
             right_mode = 'HELP';
