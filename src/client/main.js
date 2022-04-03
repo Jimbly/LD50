@@ -141,11 +141,11 @@ export function main() {
       time_decrease: 15, initial_turns: 10, base_time: 8,
       variety: 3,
     },
-    med2: {
-      display_name: 'Medium',
-      time_decrease: 25, initial_turns: 12, base_time: 8,
-      variety: 4,
-    },
+    // med2: {
+    //   display_name: 'Medium',
+    //   time_decrease: 25, initial_turns: 12, base_time: 8,
+    //   variety: 4,
+    // },
     long2: {
       display_name: 'Long',
       time_decrease: 35, initial_turns: 15, base_time: 8,
@@ -1216,7 +1216,8 @@ export function main() {
     if (page === 0) {
       text = 'Welcome to Carpentangle\n\n' +
         'You ship is sinking!  Luckily, you were transporting a shipment of match-3 games,' +
-        ' so you can use those pieces to plug the leak.';
+        ' so you can use those pieces to plug the leak.\n\n\n\n' +
+        'This game was created in 48 Hours for Ludum Dare 50 by Jimbly';
     } else if (page === 1) {
       text = 'Plugging a leak will give you a little more time.\n\n' +
         'Hint: You don\'t need to fix every leak perfectly, 1 or 2 errors on a placement' +
@@ -1369,6 +1370,9 @@ export function main() {
   }
 
   function doLeftBar() {
+    if (engine.defines.NOUI) {
+      return;
+    }
     let side_size = 20;
     let preview_time_left = max(0, game.time_left + action_turn_preview);
     let time_color = preview_time_left <= 2 ? 0xFF0000ff :
@@ -1689,8 +1693,10 @@ export function main() {
       ui.menuUp();
     }
 
-    doMatch3();
-    doShips();
+    if (!engine.defines.NOUI) {
+      doMatch3();
+      doShips();
+    }
 
     let last_size = ui.font_height * 0.8;
     // font.draw({
@@ -1715,7 +1721,7 @@ export function main() {
 
     {
       let w = ui.button_height;
-      {
+      if (!engine.defines.NOUI) {
         let y = game_height - w;
         let x = game_width - ui.button_height;
         if (ui.buttonImage({ x, y, w, img: sprites.toggles, frame: settings.music ? 0 : 1 })) {
@@ -1737,7 +1743,9 @@ export function main() {
           x -= ui.button_height + 2;
         }
       }
-      if (ftue < FTUE_DONE) {
+      if (engine.defines.NOUI) {
+        // none
+      } else if (ftue < FTUE_DONE) {
         doHelp();
       } else if (left_mode === 'NEWGAME') {
         doHighScores();

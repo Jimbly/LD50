@@ -21,7 +21,7 @@ export function getStoragePrefix(): string {
 
 let lsd = (function () {
   // if (1) {
-  //   return null; // donotcheckin
+  //   return null; // DONOTMERGE
   // }
   try {
     localStorage.setItem('test', 'test');

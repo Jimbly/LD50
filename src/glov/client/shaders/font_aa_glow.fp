@@ -18,7 +18,7 @@ void main()
   vec4 outcolor = vec4(glowColor.xyz, t * glowColor.w);
   // Main body
   t = clamp(texture0 * param0.x + param0.y, 0.0, 1.0);
-  // donotcheckin: Do this in other shaders too!  Maybe just use pre-multiplied alpha?
+  // TODO: Do this in other shaders too!  Maybe just use pre-multiplied alpha?
   // blend color on top of glow, don't just interp
   float top_alpha = t * interp_color.a;
   float total_a = top_alpha + (1.0 - top_alpha) * outcolor.a;

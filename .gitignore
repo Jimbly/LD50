@@ -12,3 +12,4 @@ Bfxr
 *.00?
 config/*.json
 .DS_Store
+screenshots/raw.psd

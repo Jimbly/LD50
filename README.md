@@ -10,8 +10,7 @@ Start with: `npm start` (after running `npm i` once)
 
 Next:
   Balance
-    Don't include both Med and Long unless I test both - just long?
-    Short level felt a little too hard for first game: survived only 44 turns
+    Short level felt a little too hard for first game: survived only 44 turns; next 64 turnsu
     Endless:
       66 turns, 31 turns left, 13 leaks plugged
         116 turns allowed, 19 penalty, 85 turns actually used
