@@ -9,16 +9,12 @@ Ludum Dare 50 Entry by Jimbly - "Carpentangle"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
-  Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
-    Short level felt too hard for first game: survived only 44 turns
+  Balance
+    Short level felt a little too hard for first game: survived only 44 turns
     Endless:
       66 turns, 31 turns left, 13 leaks plugged
         116 turns allowed, 19 penalty, 85 turns actually used
         Adjusting down to 7 => 103 turns allowed, would have 13 fewer extra turns
-  Reasonable default seeds for all difficulty levels
-    Try 4 colors instead of 3
-      Set this just for some difficulty levels
-  JK saw game over, but never saw level select
   Different shapes for pieces
   Theming
     - bubbles

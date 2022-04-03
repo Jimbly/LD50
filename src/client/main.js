@@ -1387,7 +1387,7 @@ export function main() {
       x: LEFT_BAR_X + (LEFT_BAR_W - ui.button_width) / 2,
       y: LEFT_BUTTON_Y,
       z: Z.UI2,
-      text: 'Mode Select',
+      text: game.time_left ? 'Mode Select' : 'Mode Select (Restart)',
     })) {
       left_mode = 'NEWGAME';
     }
@@ -1510,13 +1510,13 @@ export function main() {
         text: 'Game Over',
         size: 32,
       });
-      if (!game.score) {
+      if (game.ships_scored <= 3) {
         font.draw({
           x: 0, w: game_width,
           y: -10, h: game_height,
           z: Z.MODAL,
           align: font.ALIGN.HVCENTER,
-          text: 'Hint: You\'ll need to sometimes imperfectly patch just to finish filling a pattern.',
+          text: 'Hint: You\'ll need to sometimes imperfectly fill just to finish plugging a leak.',
         });
       } else {
         font.draw({
@@ -1524,7 +1524,7 @@ export function main() {
           y: -10, h: game_height,
           z: Z.MODAL,
           align: font.ALIGN.HVCENTER,
-          text: 'Check the high score list, leave your mark for all to see.',
+          text: 'Try a different or easier mode, or try again and compete for the high score!'
         });
       }
 
@@ -1532,7 +1532,7 @@ export function main() {
         x: (game_width - ui.button_width) / 2,
         y: game_height / 2 + 20,
         z: Z.MODAL,
-        text: 'I can do better!',
+        text: game.ships_scored <= 3 ? 'I can do better!' : 'Let\'s do this!',
       })) {
         game.dismissed = true;
         saveGame(game);
