@@ -10,13 +10,15 @@ const net = require('glov/client/net.js');
 const pico8 = require('glov/client/pico8.js');
 const { randCreate, mashString } = require('glov/common/rand_alea.js');
 const score_system = require('glov/client/score.js');
-const { createSprite } = require('glov/client/sprites.js');
+const { createSprite, queueraw4 } = require('glov/client/sprites.js');
+const textures = require('glov/client/textures.js');
 const ui = require('glov/client/ui.js');
-const { clone } = require('glov/common/util.js');
+const { clamp, clone, easeOut } = require('glov/common/util.js');
 const { unit_vec, vec2, vec4 } = require('glov/common/vmath.js');
 
 window.Z = window.Z || {};
 Z.BACKGROUND = 1;
+Z.WAVES = 3;
 Z.SPRITES = 10;
 Z.PARTICLES = 20;
 Z.UI_TEST = 200;
@@ -75,6 +77,18 @@ export function main() {
     ws: [128,128,128,128],
     hs: [128],
   });
+  textures.load({
+    name: 'wave_body',
+    url: 'img/wave_body.png',
+    wrap_s: gl.REPEAT,
+    wrap_t: gl.CLAMP_TO_EDGE,
+  });
+  textures.load({
+    name: 'wave_top',
+    url: 'img/wave_top.png',
+    wrap_s: gl.REPEAT,
+    wrap_t: gl.CLAMP_TO_EDGE,
+  });
 
   const level_defs = {
     short: {
@@ -124,11 +138,20 @@ export function main() {
 
   const style_score = font.style(null, {
     color: 0xFFFFFFff,
-    glow_color: 0x00000033,
+    glow_color: 0x00008033,
     glow_xoffs: 0,
     glow_yoffs: 0,
     glow_inner: 0,
     glow_outer: 5,
+  });
+
+  const style_high_scores = font.style(null, {
+    color: 0xFFFFFFff,
+    glow_color: 0x00000033,
+    glow_xoffs: 0,
+    glow_yoffs: 0,
+    glow_inner: 0,
+    glow_outer: 2,
   });
 
   function encodeScore(score) {
@@ -569,7 +592,7 @@ export function main() {
           let color = unit_vec;
           let zz = z - 1;
           let member_info = [sx, sy];
-          if (existing !== SHIP_EMPTY) {
+          if (existing !== SHIP_EMPTY && existing !== SHIP_DAMAGED) {
             place = SHIP_DAMAGED;
             zz--;
             // color = SHIP_COLORS[SHIP_DAMAGED];
@@ -717,14 +740,14 @@ export function main() {
     let size = ui.font_height;
     let header_size = size; // * 2
     let pad = size;
-    font.drawSizedAligned(null, x, y, z, header_size, font.ALIGN.HCENTERFIT, width, 0,
+    font.drawSizedAligned(style_high_scores, x, y, z, header_size, font.ALIGN.HCENTERFIT, width, 0,
       '            High Scores                  Turns');
     y += header_size + 2;
     ui.drawLine(x + 8, y, x + SCORE_W - 8, y, z, LINE_W, 1, unit_vec);
     y += 2;
     let level_id = level_def.name;
     let scores = score_system.high_scores[level_id];
-    let score_style = font.styleColored(null, pico8.font_colors[7]);
+    let score_style = font.styleColored(style_high_scores, pico8.font_colors[7]);
     if (!scores) {
       font.drawSizedAligned(score_style, x, y, z, size, font.ALIGN.HCENTERFIT, width, 0,
         'Loading...');
@@ -754,7 +777,7 @@ export function main() {
       }
       y += size;
     }
-    // drawSet(['', 'Name', 'Score', 'Turns'], font.styleColored(null, pico8.font_colors[6]), true);
+    // drawSet(['', 'Name', 'Score', 'Turns'], font.styleColored(style_high_scores, pico8.font_colors[6]), true);
     // y += 4;
     let found_me = false;
     for (let ii = 0; ii < scores.length/* * 20*/; ++ii) {
@@ -762,7 +785,7 @@ export function main() {
       let style = score_style;
       let drawme = false;
       if (s.name === score_system.player_name && !found_me) {
-        style = font.styleColored(null, pico8.font_colors[11]);
+        style = font.styleColored(style_high_scores, pico8.font_colors[11]);
         found_me = true;
         drawme = true;
       }
@@ -854,13 +877,17 @@ export function main() {
       }
       if (ui.buttonText({ x, y, z, text: def.display_name, w: BUTTON_W, colors })) {
         if (def.name === game.level) {
-          ui.modalDialog({
-            text: 'Do you wish to restart your current game?',
-            buttons: {
-              'yes': newGame.bind(null, def, null, true),
-              'no': null,
-            }
-          });
+          if (!game.time_left) {
+            newGame(def, null, true);
+          } else {
+            ui.modalDialog({
+              text: 'Do you wish to restart your current game?',
+              buttons: {
+                'yes': newGame.bind(null, def, null, true),
+                'no': null,
+              }
+            });
+          }
         } else {
           newGame(def, def.default_seed, false);
         }
@@ -980,10 +1007,91 @@ export function main() {
     sprites.bg.draw({
       x: camera2d.x0Real(),
       y: camera2d.y0Real(),
-      z: 1,
+      z: Z.BACKGROUND,
       w, h,
       uvs: [-extra_u, -extra_v, expected_u + extra_u, 1 + extra_v],
     });
+  }
+
+  let last_level = 0;
+  let last_level_eff = 0;
+  let desired_level = 0;
+  let level_change_time;
+  const LEVEL_TRANS_TIME = 1000;
+  function updateWavesLevel() {
+    let level = (game.level_def.initial_turns - game.time_left) / game.level_def.initial_turns;
+    level = clamp(level, 0.01, 0.95);
+    if (level !== desired_level) {
+      last_level = last_level_eff;
+      level_change_time = engine.frame_timestamp;
+      desired_level = level;
+    }
+    if (desired_level !== last_level) {
+      let progress = (engine.frame_timestamp - level_change_time) / LEVEL_TRANS_TIME;
+      if (progress >= 1) {
+        last_level_eff = level = last_level = desired_level;
+      } else {
+        let delta = desired_level - last_level;
+        level = last_level_eff = last_level + delta * easeOut(progress, 2);
+      }
+    } else {
+      level = last_level;
+    }
+    return level;
+  }
+  const WAVES_SPLITS = 64;
+  // const water_color = vec4(0.016, 0.047, 0.157, 1);
+  const WAVE_H = 10;
+  const WAVES = [
+    [0.039, 0.1, 1],
+    [0.087, 0.13, 0.25],
+    [0.027, -0.18, 0.12],
+  ];
+  function waveAt(xvalue) {
+    let ret = 0;
+    for (let ii = 0; ii < WAVES.length; ++ii) {
+      let wave = WAVES[ii];
+      ret += sin((xvalue + engine.frame_timestamp * wave[1]) * wave[0]) * WAVE_H * wave[2];
+    }
+    return ret;
+  }
+  const WAVE_TOP_H = 3;
+  function drawWaves() {
+    let x0 = camera2d.x0Real();
+    let x1 = camera2d.x1Real();
+    let y1 = camera2d.y1Real();
+    let level = updateWavesLevel();
+    let y0 = game_height * (1 - level);
+    // ui.drawLine(x0, y0, x1, y0, Z.WAVES + 1, 2, 0, [1,1,1,1]);
+    // ui.drawRect(x0, y, x1, y1, Z.WAVES, water_color);
+
+    let SPLIT_W = (x1 - x0) / WAVES_SPLITS;
+    let last_x = x0;
+    let last_wave = waveAt(last_x);
+    for (let ii = 0; ii < WAVES_SPLITS; ++ii) {
+      let xx0 = last_x;
+      let xx1 = x0 + (ii + 1) * SPLIT_W;
+      let wave = waveAt(xx1);
+      let y = y0;
+      queueraw4([textures.textures.wave_body],
+        xx0, y + last_wave,
+        xx0, y1,
+        xx1, y1,
+        xx1, y + wave,
+        Z.WAVES,
+        0, 0, 1, 1,
+        unit_vec);
+      queueraw4([textures.textures.wave_top],
+        xx0, y + last_wave - WAVE_TOP_H,
+        xx0, y + last_wave + WAVE_TOP_H,
+        xx1, y + wave + WAVE_TOP_H,
+        xx1, y + wave - WAVE_TOP_H,
+        Z.WAVES + 0.5,
+        0, 0, 1, 1,
+        unit_vec);
+      last_x = xx1;
+      last_wave = wave;
+    }
   }
 
   function stateTest(dt) {
@@ -1050,6 +1158,8 @@ export function main() {
     doHighScores(dt);
 
     drawBG();
+
+    drawWaves();
   }
 
   function testInit(dt) {

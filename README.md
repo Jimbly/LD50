@@ -10,10 +10,11 @@ Start with: `npm start` (after running `npm i` once)
 
 Next:
   Theming
-    - simple, with rising water in background
-    - waves, bubbles, stormy above, gradient sky
-  Don't double-count a second miss in the same spot?  Maybe even allow it to fill in with color?
+    - bubbles
+    - stormy above
+  Try: damaged counts as empty (actually just goes empty?)
   Allow some number of misses per ship, or ramp them smoother to be nicer?
+  Some holes should be notably smaller / easier, at least at the beginning
   Try 4 colors instead of 3
 Feedback:
   Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
