@@ -178,8 +178,9 @@ export function main() {
     glow_xoffs: 0,
     glow_yoffs: 0,
     glow_inner: 0,
-    glow_outer: 2,
+    glow_outer: 3,
   });
+  const style_level_select = style_high_scores;
 
   function encodeScore(score) {
     let actions = min(score.actions, 99999);
@@ -1186,7 +1187,7 @@ export function main() {
     let y = PAD;
     let z = Z.UI2;
     const BUTTON_W = 50;
-    font.draw({ x, y, w: BUTTON_W, align: font.ALIGN.HCENTER, text: 'Modes' });
+    font.draw({ x, y, w: BUTTON_W, align: font.ALIGN.HCENTER, text: 'Modes', style: style_level_select });
     y += ui.font_height;
     ui.drawLine(x, y, x + BUTTON_W, y, z, LINE_W, 1, unit_vec);
     y += 4;
@@ -1248,12 +1249,12 @@ export function main() {
         sprites.tiles.draw({
           x: desc_x + size, y,
           w: size, h: size, z,
-          frame: 0, color: M3COLORS[1],
+          frame: 1, color: M3COLORS[1],
         });
         sprites.tiles.draw({
           x: desc_x + size/2, y: y + size,
           w: size, h: size, z,
-          frame: 0, color: M3COLORS[2],
+          frame: 2, color: M3COLORS[2],
         });
       } else {
         sprites.tiles.draw({
@@ -1264,17 +1265,17 @@ export function main() {
         sprites.tiles.draw({
           x: desc_x + size, y,
           w: size, h: size, z,
-          frame: 0, color: M3COLORS[1],
+          frame: 1, color: M3COLORS[1],
         });
         sprites.tiles.draw({
           x: desc_x, y: y + size,
           w: size, h: size, z,
-          frame: 0, color: M3COLORS[2],
+          frame: 2, color: M3COLORS[2],
         });
         sprites.tiles.draw({
           x: desc_x + size, y: y + size,
           w: size, h: size, z,
-          frame: 0, color: M3COLORS[3],
+          frame: 3, color: M3COLORS[3],
         });
       }
       desc_x += size*2 + PAD/2;
@@ -1283,8 +1284,9 @@ export function main() {
         y, h: ui.button_height,
         z,
         align: font.ALIGN.VCENTER | font.ALIGN.HFIT,
-        text: def.time_decrease ? `Difficulty+ every ${def.time_decrease}⚡` :
+        text: def.time_decrease ? `Difficulty↑ every ${def.time_decrease}⚡` :
           `Constant ${def.base_time}⚡ per leak`,
+        style: style_level_select,
       });
       y += ui.button_height + 2;
     }
