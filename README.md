@@ -1,7 +1,7 @@
 LD50 - Delay the inevitable
 ============================
 
-Ludum Dare 50 Entry by Jimbly - "TBD"
+Ludum Dare 50 Entry by Jimbly - "Carpentangle"
 
 * Play here: [http://www.dashingstrike.com/LudumDare/LD50/](dashingstrike.com/LudumDare/LD50/)
 * Using [Javascript libGlov/GLOV.js framework](https://github.com/Jimbly/glovjs)
@@ -9,7 +9,6 @@ Ludum Dare 50 Entry by Jimbly - "TBD"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
-  Carpentangle
   Double floater length
   selecting previous level in level select that's saved, but ended, should just start a new one
   Tutorial text (FTUE-based with forward/back arrows) in upper right
