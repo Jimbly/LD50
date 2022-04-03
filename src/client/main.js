@@ -147,7 +147,7 @@ export function main() {
     //   variety: 4,
     // },
     long2: {
-      display_name: 'Long',
+      display_name: 'Long (easier)',
       time_decrease: 35, initial_turns: 15, base_time: 8,
       variety: 4,
     },
@@ -1091,12 +1091,14 @@ export function main() {
   const PAD = 4;
   const SCORE_PAD = PAD * 2;
   const scores_bg = vec4(0.2, 0.2, 0.2, 1);
+  const scores_bg_shadow = vec4(0.2, 0.2, 0.2, 0.5);
   const SCORE_X = M3X + M3_VIS_W + SCORE_PAD;
   const LEFT_BAR_W = (game_width - M3_VIS_W) / 2;
   const LEFT_BAR_X = 0;
   const LEFT_BUTTON_Y = SHIPY - TILEADV - ui.button_height;
   const SCORE_W = game_width - SCORE_PAD - SCORE_X;
   const LINE_W = 0.4;
+  const SCORE_SHADOW = 2;
 
   let scores_edit_box;
   function doHighScores() {
@@ -1107,6 +1109,8 @@ export function main() {
     if (left_mode === 'NEWGAME' || !game.time_left && game.dismissed) {
       const SCORE_H = SHIPY - TILE_PAD - y;
       ui.drawRect(x, y - 2, x + SCORE_W, y + SCORE_H, z - 1, scores_bg);
+      ui.drawRect(x + SCORE_SHADOW, y - 2 + SCORE_SHADOW,
+        x + SCORE_W + SCORE_SHADOW, y + SCORE_H + SCORE_SHADOW, z - 1, scores_bg_shadow);
     }
 
     let need_name = score_system.player_name.indexOf('Anonymous') === 0;
@@ -1257,11 +1261,11 @@ export function main() {
     } else if (page === 3) {
       text = 'Score is increased for more connected tiles of the same color (excluding damaged tiles).\n\n' +
         'Damaged (dark red) tiles do NOT need to be filled in to fix a leak, however there is' +
-        ' no penalty for placing over a damaged tile, and doing so may increase your score!';
+        ' no penalty for placing over a damaged tile, and doing so strategically may increase your score!';
     } else if (page === 4) {
       text = 'Different modes have a different feel.\n\n' +
         'Endless mode keeps a constant difficulty, but is only actually "endless" if you\'re good!\n\n' +
-        'Medium and Long modes include 4 colors!';
+        'The Long mode includes 4 colors!';
     }
 
     font.draw({
@@ -1311,6 +1315,9 @@ export function main() {
         colors = colors_selected;
         ui.drawRect(x + BUTTON_W/2, y+2, SCORE_X + 1, y + ui.button_height - 2,
           z - 1, scores_bg);
+        ui.drawRect(x + BUTTON_W/2 + SCORE_SHADOW, y+2 + SCORE_SHADOW,
+          SCORE_X + 1 + SCORE_SHADOW, y + ui.button_height - 2 + SCORE_SHADOW,
+          z - 1, scores_bg_shadow);
       }
       if (ui.buttonText({ x, y, z, text: def.display_name, w: BUTTON_W, colors })) {
         if (def.name === game.level) {
@@ -1700,7 +1707,7 @@ export function main() {
           y: -10, h: game_height,
           z: Z.MODAL,
           align: font.ALIGN.HVCENTER,
-          text: 'Try a different or easier mode, or try again and compete for the high score!'
+          text: 'Try a different mode, or play again and compete for the high score!'
         });
       }
 

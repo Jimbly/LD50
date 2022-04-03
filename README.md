@@ -20,6 +20,7 @@ Polish:
   Splash screen / title / name / logo / intro blurb?
 Fix:
   Touch controls
+  missing MP3s
 
 Ideas:
 
