@@ -105,18 +105,22 @@ export function main() {
     short2: {
       display_name: 'Short', default_seed: 'test',
       time_decrease: 15, initial_turns: 10, base_time: 8,
+      variety: 3,
     },
     med2: {
       display_name: 'Medium',
       time_decrease: 25, initial_turns: 12, base_time: 8,
+      variety: 4,
     },
     long2: {
       display_name: 'Long',
       time_decrease: 35, initial_turns: 15, base_time: 8,
+      variety: 4,
     },
     endless2: {
       display_name: 'Endless',
       initial_turns: 12, base_time: 7,
+      variety: 3,
     },
   };
   let level_list = Object.keys(level_defs).map((key) => {
@@ -197,7 +201,6 @@ export function main() {
 
   const M3W = 8;
   const M3H = 7;
-  const M3VARIETY = 3;
   const M3COLORS = [
     // pico8.colors[8],
     // pico8.colors[11],
@@ -205,9 +208,9 @@ export function main() {
     // pico8.colors[15],
 
     //vec4(1,0.5,0.5,1),
-    vec4(1,0.6,0.5,1),
     vec4(0.5,1,0.5,1),
     vec4(0.5,0.5,1,1),
+    vec4(1,0.6,0.5,1),
     vec4(1.0,0.5,1,1),
 
     // vec4(0.5,0.8,1.0,1),
@@ -312,7 +315,7 @@ export function main() {
     for (let ii = 0; ii < M3H; ++ii) {
       let row = [];
       for (let jj = 0; jj < M3W; ++jj) {
-        row.push(rand.range(M3VARIETY));
+        row.push(rand.range(level_def.variety));
       }
       game.m3board.push(row);
     }
@@ -441,7 +444,7 @@ export function main() {
       board[y][x] = board[y-1][x];
       y--;
     }
-    board[0][x] = game.rand.range(M3VARIETY);
+    board[0][x] = game.rand.range(game.level_def.variety);
     m3anim[[x,0]] = anim_offs[x];
   }
 
@@ -1122,7 +1125,7 @@ export function main() {
     // ui.menuUp();
   }
 
-  const MAX_HELP_PAGE = 3;
+  const MAX_HELP_PAGE = 4;
   function doHelp() {
     let x = SCORE_X;
     let y = PAD + TILE_SIZE;
@@ -1154,6 +1157,10 @@ export function main() {
       text = 'Score is increased for more connected tiles of the same color (excluding damaged tiles).\n\n' +
         'Damaged (dark red) tiles do NOT need to be filled in to fix a leak, however there is' +
         ' no penalty for placing over a damaged tile, and doing so may increase your score!';
+    } else if (page === 4) {
+      text = 'Different modes have a different feel.\n\n' +
+        'Endless mode keeps a constant difficulty, but is only actually "endless" if you\'re good!\n\n' +
+        'Medium and Long modes include 4 colors!';
     }
 
     font.draw({
@@ -1169,8 +1176,8 @@ export function main() {
     let x = PAD;
     let y = PAD;
     let z = Z.UI2;
-    const BUTTON_W = 60;
-    font.draw({ x, y, w: BUTTON_W, align: font.ALIGN.HCENTER, text: 'Levels' });
+    const BUTTON_W = 50;
+    font.draw({ x, y, w: BUTTON_W, align: font.ALIGN.HCENTER, text: 'Modes' });
     y += ui.font_height;
     ui.drawLine(x, y, x + BUTTON_W, y, z, LINE_W, 1, unit_vec);
     y += 4;
@@ -1221,7 +1228,47 @@ export function main() {
           newGame(def, def.default_seed, false);
         }
       }
-      let desc_x = x + BUTTON_W + PAD;
+      let desc_x = x + BUTTON_W + PAD/2;
+      const size = 6;
+      if (def.variety === 3) {
+        sprites.tiles.draw({
+          x: desc_x, y,
+          w: size, h: size, z,
+          frame: 0, color: M3COLORS[0],
+        });
+        sprites.tiles.draw({
+          x: desc_x + size, y,
+          w: size, h: size, z,
+          frame: 0, color: M3COLORS[1],
+        });
+        sprites.tiles.draw({
+          x: desc_x + size/2, y: y + size,
+          w: size, h: size, z,
+          frame: 0, color: M3COLORS[2],
+        });
+      } else {
+        sprites.tiles.draw({
+          x: desc_x, y,
+          w: size, h: size, z,
+          frame: 0, color: M3COLORS[0],
+        });
+        sprites.tiles.draw({
+          x: desc_x + size, y,
+          w: size, h: size, z,
+          frame: 0, color: M3COLORS[1],
+        });
+        sprites.tiles.draw({
+          x: desc_x, y: y + size,
+          w: size, h: size, z,
+          frame: 0, color: M3COLORS[2],
+        });
+        sprites.tiles.draw({
+          x: desc_x + size, y: y + size,
+          w: size, h: size, z,
+          frame: 0, color: M3COLORS[3],
+        });
+      }
+      desc_x += size*2 + PAD/2;
       font.draw({
         x: desc_x, w: M3X - desc_x - PAD,
         y, h: ui.button_height,
@@ -1340,7 +1387,7 @@ export function main() {
       x: LEFT_BAR_X + (LEFT_BAR_W - ui.button_width) / 2,
       y: LEFT_BUTTON_Y,
       z: Z.UI2,
-      text: 'Level Select',
+      text: 'Mode Select',
     })) {
       left_mode = 'NEWGAME';
     }
@@ -1529,7 +1576,7 @@ export function main() {
         if (right_mode === 'HIGHSCORES') {
           right_mode = 'HELP';
           if (help_page === null) {
-            help_page = MAX_HELP_PAGE;
+            help_page = 3;
           }
         } else {
           right_mode = 'HIGHSCORES';

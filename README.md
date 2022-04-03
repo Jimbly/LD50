@@ -11,7 +11,10 @@ Start with: `npm start` (after running `npm i` once)
 Next:
   Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
     Short level felt too hard for first game: survived only 44 turns
-    What if it doesn't reduce the reward?
+    Endless:
+      66 turns, 31 turns left, 13 leaks plugged
+        116 turns allowed, 19 penalty, 85 turns actually used
+        Adjusting down to 7 => 103 turns allowed, would have 13 fewer extra turns
   Reasonable default seeds for all difficulty levels
     Try 4 colors instead of 3
       Set this just for some difficulty levels
@@ -20,6 +23,7 @@ Next:
   Theming
     - bubbles
     - stormy above
+    - swirling water in empty holes? - distinct from filled / error
 Polish:
   Panel GFX and color for restart dialog
   Sound FX
