@@ -898,8 +898,8 @@ export function main() {
         y, h: ui.button_height,
         z,
         align: font.ALIGN.VCENTER | font.ALIGN.HFIT,
-        text: def.time_decrease ? `Diff+ every ${def.time_decrease} Turns` :
-          `Constant ${def.base_time} Turns per patch`,
+        text: def.time_decrease ? `Difficulty+ every ${def.time_decrease} Turns` :
+          `Constant ${def.base_time} Turns per fill`,
       });
       y += ui.button_height + 2;
     }
@@ -1140,7 +1140,7 @@ export function main() {
       x: 0, w: game_width,
       y: game_height - 10 - last_size,
       align: font.ALIGN.HCENTER,
-      text: `Patching a hole rewards ${game.base_time} turns minus any misses accumulated while patching`,
+      text: `Completely patching a hole rewards ${game.base_time} turns minus any misses accumulated while patching`,
       size: last_size,
       style: style_bottom_hint,
     });
