@@ -100,24 +100,28 @@ export function main() {
   });
 
   const level_defs = {
-    short: {
-      name: 'short', display_name: 'Short', default_seed: 'test',
+    short2: {
+      display_name: 'Short', default_seed: 'test',
       time_decrease: 15, initial_turns: 10, base_time: 8,
     },
-    med: {
-      name: 'med', display_name: 'Medium',
+    med2: {
+      display_name: 'Medium',
       time_decrease: 25, initial_turns: 12, base_time: 8,
     },
-    long: {
-      name: 'long', display_name: 'Long',
+    long2: {
+      display_name: 'Long',
       time_decrease: 35, initial_turns: 15, base_time: 8,
     },
-    endless: {
-      name: 'endless', display_name: 'Endless',
+    endless2: {
+      display_name: 'Endless',
       initial_turns: 12, base_time: 8,
     },
   };
-  let level_list = Object.keys(level_defs).map((key) => level_defs[key]);
+  let level_list = Object.keys(level_defs).map((key) => {
+    let def = level_defs[key];
+    def.name = key;
+    return def;
+  });
   for (let ii = 0; ii < level_list.length; ++ii) {
     level_list[ii].idx = ii;
   }
@@ -170,16 +174,19 @@ export function main() {
 
   function encodeScore(score) {
     let actions = min(score.actions, 99999);
-    return (score.score || 0) * 100000 + actions;
+    return ((score.score || 0) * 100000 + actions) * 10000 + score.ships;
   }
 
   function parseScore(value) {
-    let score = floor(value / 100000);
-    value -= score * 100000;
-    let actions = value;
+    let score = floor(value / (100000 * 10000));
+    value -= score * 100000 * 10000;
+    let actions = floor(value / 10000);
+    value -= actions * 10000;
+    let ships = value;
     return {
       score,
       actions,
+      ships,
     };
   }
 
@@ -317,6 +324,7 @@ export function main() {
     game.ships[1] = t;
     game.piece = null;
     game.score = 0;
+    game.ships_scored = 0;
     game.actions = 0;
     game.time_left = level_def.initial_turns || 10;
     game.dismissed = false;
@@ -331,6 +339,7 @@ export function main() {
     'ships',
     'piece',
     'score',
+    'ships_scored',
     'actions',
     'time_left',
     'dismissed',
@@ -585,7 +594,7 @@ export function main() {
       }
     }
     return {
-      time: max(1, game.base_time - (ship.miss || 0)),
+      time: max(1, game.base_time/* - (ship.miss || 0)*/),
       done: !count[SHIP_EMPTY],
       score,
       is_perfect,
@@ -668,6 +677,7 @@ export function main() {
     game.old_ships[idx] = ship;
     game.ships[idx] = newShip(game);
     game.score += score.score;
+    game.ships_scored++;
     let anim = game.ship_anims[idx] = createAnimationSequencer();
     game.ship_alpha[idx] = 1;
     let t = anim.add(0, 1000, (progress) => {
@@ -702,7 +712,7 @@ export function main() {
       removeShip(ship, score);
     }
     score_system.setScore(game.level_def.idx,
-      { score: game.score, actions: game.actions }
+      { score: game.score, actions: game.actions, ships: game.ships_scored }
     );
     score_system.updateHighScores();
     if (game.time_decrease) {
@@ -724,6 +734,7 @@ export function main() {
   const SHIPX = (game_width - (SHIP_VIS_W * NUM_SHIPS - SHIP_PAD)) / 2;
   const SHIPY = M3Y + TILEADV * M3H + TILE_SIZE;
   let mouse_pos = vec2();
+  let action_turn_preview;
   function doShip(alpha, x0, y0, ship, do_piece) {
     let z = Z.UI;
     let { piece } = game;
@@ -779,6 +790,7 @@ export function main() {
           temp_ship.miss += dt;
           if (do_place) {
             ship.miss += dt;
+            game.time_left = max(0, game.time_left - dt);
           }
         }
         if (do_place) {
@@ -798,9 +810,13 @@ export function main() {
     }
     let orig_score = shipCalcScore(ship);
     let score = shipCalcScore(temp_ship || ship);
+    if (score.done && do_piece) {
+      action_turn_preview += score.time;
+    }
+    let y = y0 + SHIPH * TILEADV + 2;
     font.draw({
       x: x0, w: SHIP_VIS_W - SHIP_PAD,
-      y: y0 + SHIPH * TILEADV,
+      y,
       z: Z.UI + 20,
       align: font.ALIGN.HCENTER,
       text: orig_score.time !== score.time ?
@@ -812,10 +828,11 @@ export function main() {
         style_fill_help,
       alpha,
     });
+    y += ui.font_height + 2;
     if (ftue >= FTUE_SHOW_SCORE) {
       font.draw({
         x: x0, w: SHIP_VIS_W - SHIP_PAD,
-        y: y0 + SHIPH * TILEADV + ui.font_height + 1,
+        y,
         z: Z.UI + 20,
         align: font.ALIGN.HCENTER,
         text: orig_score.score !== score.score ?
@@ -843,6 +860,7 @@ export function main() {
 
   let left_mode = 'SCORE';
   function doShips() {
+    action_turn_preview = 0;
     let { ships, piece, old_ships, ship_alpha, ship_anims } = game;
     let pos = input.mousePos(mouse_pos);
     let piece_ship = -1;
@@ -870,10 +888,10 @@ export function main() {
 
     font.draw({
       x: 4, w: 40,
-      y: SHIPY + SHIPH * TILEADV, h: ui.font_height * 2 + 1,
+      y: SHIPY + SHIPH * TILEADV + 3, h: ui.font_height * 2 + 1,
       z: Z.UI + 20,
       align: font.ALIGN.HVCENTER | font.ALIGN.HWRAP,
-      text: 'Patch\nreward:',
+      text: 'Fix leak\nreward:',
       style: style_fill_help,
     });
 
@@ -924,18 +942,22 @@ export function main() {
           num_misses++;
         }
       }
+      if (piece_info) {
+        action_turn_preview--;
+      }
       if (num_misses) {
         let text_y = ymax < SHIPY + TILEADV * (SHIPH - 2) ?
           ymax + TILEADV + TILE_PAD :
           ymin - TILE_PAD * 2 - ui.font_height;
         let text_x =(xmin + xmax + TILE_SIZE) / 2;
         let dt = missesToTurnLoss(num_misses);
+        action_turn_preview -= dt;
         let w = font.draw({
           x: text_x, w: 0,
           y: text_y,
           z: z + 22,
           align: font.ALIGN.HCENTER,
-          text: `${num_misses} ${num_misses > 1 ? 'misses' : 'miss'}, -${dt} ${plural(dt, 'Turn')}`,
+          text: `${num_misses} ${num_misses > 1 ? 'errors' : 'error'}, -${dt} ${plural(dt, 'Turn')}`,
           style: style_minus_turn,
         });
         w = w / 2 + TILE_PAD;
@@ -1084,6 +1106,8 @@ export function main() {
 
   }
 
+  let is_first_new_game = true;
+
   function doLevelSelect() {
     let x = PAD;
     let y = PAD;
@@ -1098,6 +1122,10 @@ export function main() {
       if (def.saved && !force_new) {
         game = gameFromJSON(def.saved);
       } else {
+        if (is_first_new_game) {
+          is_first_new_game = false;
+          seed = def.default_seed;
+        }
         game = new Game(def.name, seed);
         saveGame(game);
       }
@@ -1155,13 +1183,16 @@ export function main() {
 
   function doLeftBar() {
     let side_size = 20;
-    let time_color = game.time_left <= 2 ? 0xFF0000ff :
-      game.time_left < 4 ? 0xFFFF00ff : 0xFFFFFFff;
+    let preview_time_left = max(0, game.time_left + action_turn_preview);
+    let time_color = preview_time_left <= 2 ? 0xFF0000ff :
+      preview_time_left < 4 ? 0xFFFF00ff : 0xFFFFFFff;
     let time_alpha;
-    if (game.time_left === 1) {
+    if (game.time_left === 1 && !preview_time_left ||
+      preview_time_left === 0 && game.time_left > 0
+    ) {
       time_alpha = (1 - abs(sin(engine.frame_timestamp * 0.008)));
     }
-    let y = 10;
+    let y = 8;
     if (!game.time_left) {
       ftue = FTUE_DONE;
       y += side_size * 0.75;
@@ -1191,7 +1222,9 @@ export function main() {
         x: LEFT_BAR_X, w: LEFT_BAR_W,
         y,
         align: font.ALIGN.HCENTER,
-        text: String(game.time_left),
+        text: action_turn_preview ?
+          `${game.time_left} → ${preview_time_left}` :
+          String(game.time_left),
         size: side_size,
         style: style_score,
         color: time_color,
@@ -1230,6 +1263,16 @@ export function main() {
       });
     }
     y += side_size;
+    if (ftue >= FTUE_SHOW_SCORE && game.ships_scored) {
+      font.draw({
+        x: LEFT_BAR_X, w: LEFT_BAR_W,
+        y: y,
+        align: font.ALIGN.HCENTER,
+        text: `Plugged ${game.ships_scored} ${plural(game.ships_scored, 'leak')}`,
+        style: style_bottom_hint,
+      });
+      y += ui.font_height;
+    }
 
     if (ftue >= FTUE_SHOW_LEVEL_SELECT && ui.buttonText({
       x: LEFT_BAR_X + (LEFT_BAR_W - ui.button_width) / 2,
@@ -1392,20 +1435,21 @@ export function main() {
     doShips();
 
     let last_size = ui.font_height * 0.8;
-    font.draw({
-      x: 0, w: game_width,
-      y: game_height - 10 - last_size,
-      align: font.ALIGN.HCENTER,
-      text: `Completely patching a hole rewards ${game.base_time} Turns minus penalty from misses`,
-      size: last_size,
-      style: style_bottom_hint,
-    });
+    // font.draw({
+    //   x: 0, w: game_width,
+    //   y: game_height - 10 - last_size,
+    //   align: font.ALIGN.HCENTER,
+    //   text: `Completely plugging a leak rewards ${game.base_time} Turns`,
+    //   size: last_size,
+    //   style: style_bottom_hint,
+    // });
     if (game.time_decrease && game.base_time > 1) {
       font.draw({
         x: 0, w: game_width,
         y: game_height - 10,
         align: font.ALIGN.HCENTER,
-        text: `This reduces to ${game.base_time - 1} in ${game.time_decrease} turns`,
+        text: `Reward for plugging a leak reduces to ${game.base_time - 1} in` +
+          ` ${game.time_decrease} ${plural(game.time_decrease, 'Turn')}`,
         size: last_size,
         style: style_bottom_hint,
       });
@@ -1421,7 +1465,7 @@ export function main() {
   }
 
   function testInit(dt) {
-    let start_def = level_defs.short;
+    let start_def = level_defs.short2;
     if (start_def.saved) {
       game = gameFromJSON(start_def.saved);
     } else {

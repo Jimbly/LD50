@@ -9,14 +9,25 @@ Ludum Dare 50 Entry by Jimbly - "TBD"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
+  Carpentangle
+  Double floater length
+  selecting previous level in level select that's saved, but ended, should just start a new one
+  Tutorial text (FTUE-based with forward/back arrows) in upper right
+  Your ship is sinking! Quick, repair it using the cargo of match three games!
   Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
+    Short level felt too hard for first game: survived only 44 turns
+    What if it doesn't reduce the reward?
+  Use a clock icon instead of the word Turn
   Reasonable default seeds for all difficulty levels
     Try 4 colors instead of 3
       Set this just for some difficulty levels
+  JK saw game over, but never saw level select
+  Different shapes for pieces
   Theming
     - bubbles
     - stormy above
 Polish:
+  Also do floater for number of turns gained (3 floaters?)
   Panel GFX and color for restart dialog
   Sound FX
   Music
