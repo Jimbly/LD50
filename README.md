@@ -19,10 +19,7 @@ Next:
   Theming
     - bubbles
     - stormy above
-    - swirling water in empty holes? - distinct from filled / error
 Polish:
-  Sound FX
-  Music
   Animate time ticking up/down
   Maybe allow placing large pieces straddling two ships
   Splash screen / title / name / logo / intro blurb?

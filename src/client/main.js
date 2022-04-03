@@ -15,11 +15,11 @@ const { randCreate, mashString } = require('glov/common/rand_alea.js');
 const score_system = require('glov/client/score.js');
 const settings = require('glov/client/settings.js');
 const { soundPlayMusic, soundResumed, FADE } = require('glov/client/sound.js');
-const { createSprite, queueraw4 } = require('glov/client/sprites.js');
+const { createSprite, queueraw4, BLEND_ADDITIVE } = require('glov/client/sprites.js');
 const textures = require('glov/client/textures.js');
 const ui = require('glov/client/ui.js');
 const { clamp, clone, easeIn, easeOut, plural, ridx } = require('glov/common/util.js');
-const { unit_vec, vec2, vec4, v4set } = require('glov/common/vmath.js');
+const { unit_vec, vec2, v3set, vec4, v4set } = require('glov/common/vmath.js');
 
 window.Z = window.Z || {};
 Z.BACKGROUND = 1;
@@ -78,6 +78,11 @@ export function main() {
     sound: {
       fade_rate: 0.0001,
     },
+    ui_sounds: {
+      up: ['up1', 'up2', 'up3', 'up4'],
+      down: ['down1', 'down2', 'down3', 'down4'],
+      score: 'score',
+    },
   })) {
     return;
   }
@@ -93,6 +98,12 @@ export function main() {
     name: 'bg',
     wrap_s: gl.REPEAT,
     wrap_t: gl.CLAMP_TO_EDGE,
+  });
+  sprites.swirl = createSprite({
+    name: 'swirl',
+    wrap_s: gl.CLAMP_TO_EDGE,
+    wrap_t: gl.CLAMP_TO_EDGE,
+    origin: vec2(0.5, 0.5),
   });
   sprites.tiles = createSprite({
     name: 'tile',
@@ -490,10 +501,13 @@ export function main() {
         }
       }
     }
+    ui.playUISound('up');
     saveGame(game);
   }
 
   let color_temp = vec4(1,1,1,1);
+  let color_swirl = vec4(0, 0, 0.25, 1);
+  let rand_cache = [];
   function drawTile(x, y, z, tile, alpha) {
     let color = M3COLORS[tile] || SHIP_COLORS[tile];
     if (!color) {
@@ -502,18 +516,49 @@ export function main() {
     if (alpha === undefined) {
       alpha = 1;
     }
-    color_temp[3] = alpha;
     let frame = tile >= 0 ? tile : 0;
+    x -= TILE_PAD/2;
+    y -= TILE_PAD/2;
+    // background
+    color_temp[3] = alpha;
+    if (tile === SHIP_EMPTY) {
+      color_swirl[3] = alpha;
+      let randidx = x * 100000 + y;
+      let r1 = rand_cache[randidx];
+      let r2 = rand_cache[randidx + 0.5];
+      if (!r1) {
+        r1 = rand_cache[randidx] = random();
+        r2 = rand_cache[randidx + 0.5] = random();
+      }
+      sprites.swirl.draw({
+        x: x + TILEADV/2, y: y + TILEADV/2, z: z + 1,
+        w: TILE_SIZE, h: TILE_SIZE,
+        color: color_swirl,
+        rot: engine.frame_timestamp * -0.001 * (1 + r1 * 0.5),
+        blend: BLEND_ADDITIVE,
+      });
+      sprites.swirl.draw({
+        x: x + TILEADV/2, y: y + TILEADV/2, z: z + 2,
+        w: TILE_SIZE, h: TILE_SIZE,
+        color: color_swirl,
+        rot: engine.frame_timestamp * 0.001 * (1 + r2 * 0.5) + 1.3*r2,
+        blend: BLEND_ADDITIVE,
+      });
+      v3set(color_temp, 0.5, 0.5, 1);
+    } else {
+      v3set(color_temp, 1,1,1);
+    }
     sprites.tiles.draw({
-      x: x - TILE_PAD/2, y: y - TILE_PAD/2,
+      x, y,
       w: TILEADV, h: TILEADV,
       z: z - 1,
       frame,
       color: color_temp,
     });
+    // foreground
     color[3] = alpha;
     sprites.tiles.draw({
-      x: x - TILE_PAD/2, y: y - TILE_PAD/2,
+      x, y,
       w: TILEADV, h: TILEADV,
       z,
       frame: frame + 4,
@@ -742,6 +787,7 @@ export function main() {
   }
 
   function placePiece(ship) {
+    ui.playUISound('down');
     // actual pieces placed while drawing
     game.actions++;
     game.piece = null;
@@ -749,6 +795,7 @@ export function main() {
     let score = shipCalcScore(ship);
     if (score.done) {
       // remove and score ship
+      ui.playUISound('score');
       removeShip(ship, score);
     }
     score_system.setScore(game.level_def.idx,
@@ -1435,12 +1482,11 @@ export function main() {
 
   let last_music_time = -Infinity;
   let last_music_song;
-  const MUSIC_VOLUME = 0.1;
+  const MUSIC_VOLUME = 0.2;
   const songs = [
-    'song1.mp3',
-    'song2-30.mp3',
-    'song2-40.mp3',
-    'song2-80.mp3',
+    'song3-bass.mp3',
+    'song3-90.mp3',
+    'song3-120.mp3',
   ];
   function updateMusic(level) {
     if (!soundResumed()) {
@@ -1448,14 +1494,17 @@ export function main() {
     }
     let time_since_music_change = engine.frame_timestamp - last_music_time;
     let song_idx = 0;
-    if (level > 0.5 && game.time_left) {
-      song_idx = floor((level - 0.5) * 2 * 3) + 1;
+    if (level > 0.5) {
+      song_idx = floor((level - 0.5) * 2 * (songs.length-1)) + 1;
+    }
+    if (!game.time_left) {
+      song_idx = 1;
     }
     let desired_song = songs[song_idx];
     if (last_music_song === desired_song) {
       return;
     }
-    if (time_since_music_change < 5000) {
+    if (time_since_music_change < 10000) {
       return;
     }
     soundPlayMusic(desired_song, MUSIC_VOLUME, FADE);
@@ -1486,9 +1535,9 @@ export function main() {
         level = last_level_eff = last_level + delta * easeOut(progress, 2);
       }
     } else {
+      updateMusic(level);
       level = last_level;
     }
-    updateMusic(level);
     return level;
   }
   const WAVES_SPLITS = 64;
