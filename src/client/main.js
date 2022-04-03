@@ -483,16 +483,29 @@ export function main() {
     m3anim[[x,0]] = anim_offs[x];
   }
 
+  function clearTiles() {
+    anim_offs = [];
+    let board = game.m3board;
+    for (let jj = 0; jj < board.length; ++jj) {
+      let row = board[jj];
+      for (let ii = 0; ii < row.length; ++ii) {
+        while (row[ii] === SHIP_BORDER) {
+          m3clearTile(board, ii, jj);
+        }
+      }
+    }
+  }
+
   const TILE_PAD = 2;
   const TILEADV = TILE_SIZE + TILE_PAD;
 
+  let released_mouse = true;
   function pickup(match) {
     let { members } = match;
     let board = game.m3board;
-    anim_offs = [];
     for (let ii = 0; ii < members.length; ++ii) {
       let [x, y] = members[ii];
-      board[y][x] = -1;
+      board[y][x] = SHIP_BORDER;
       members[ii][0] -= match.x;
       members[ii][1] -= match.y;
     }
@@ -500,15 +513,24 @@ export function main() {
     match.yoffs -= match.y * TILEADV;
     game.piece = match;
 
+    ui.playUISound('up');
+    saveGame(game);
+    released_mouse = false;
+  }
+
+  function replacePiece() {
+    let { piece } = game;
+    let board = game.m3board;
     for (let jj = 0; jj < board.length; ++jj) {
       let row = board[jj];
       for (let ii = 0; ii < row.length; ++ii) {
-        while (row[ii] === -1) {
-          m3clearTile(board, ii, jj);
+        if (row[ii] === SHIP_BORDER) {
+          row[ii] = piece.tile;
         }
       }
     }
-    ui.playUISound('up');
+    game.piece = null;
+    ui.playUISound('down');
     saveGame(game);
   }
 
@@ -795,6 +817,7 @@ export function main() {
 
   function placePiece(ship) {
     ui.playUISound('down');
+    clearTiles();
     // actual pieces placed while drawing
     game.actions++;
     game.piece = null;
@@ -1696,6 +1719,12 @@ export function main() {
     if (!engine.defines.NOUI) {
       doMatch3();
       doShips();
+      if (game.piece && released_mouse && input.click()) {
+        replacePiece();
+      }
+      if (!released_mouse && !input.mouseDown()) {
+        released_mouse = true;
+      }
     }
 
     let last_size = ui.font_height * 0.8;
