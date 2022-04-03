@@ -20,6 +20,9 @@ export function getStoragePrefix(): string {
 }
 
 let lsd = (function () {
+  // if (1) {
+  //   return null; // donotcheckin
+  // }
   try {
     localStorage.setItem('test', 'test');
     localStorage.removeItem('test');

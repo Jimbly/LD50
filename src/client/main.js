@@ -38,10 +38,10 @@ const colors_selected = ui.makeColorSet([0.5, 1, 0.5, 1]);
 let sprites = {};
 
 const FTUE_INIT = 0;
-const FTUE_SHOW_MULTIPLE_BOARDS = 2;
 const FTUE_SHOW_SCORE = 1;
-const FTUE_SHOW_HIGH_SCORES = 3;
-const FTUE_DONE = 4;
+const FTUE_SHOW_MULTIPLE_BOARDS = 1;
+// 2 is help text
+const FTUE_DONE = 3;
 const FTUE_SHOW_LEVEL_SELECT = FTUE_DONE;
 let ftue = FTUE_INIT;
 
@@ -197,7 +197,7 @@ export function main() {
 
   const M3W = 8;
   const M3H = 7;
-  const M3VARIETY = 3;
+  const M3VARIETY = 1;
   const M3COLORS = [
     // pico8.colors[8],
     // pico8.colors[11],
@@ -676,8 +676,8 @@ export function main() {
     }
     if (game.score) {
       // second+ scoring
-      if (ftue < FTUE_SHOW_HIGH_SCORES) {
-        ftue = FTUE_SHOW_HIGH_SCORES;
+      if (ftue < FTUE_DONE) {
+        ftue++;
       }
     }
     game.time_left += score.time;
@@ -870,6 +870,7 @@ export function main() {
     }
   }
 
+  let right_mode = 'HIGHSCORES';
   let left_mode = 'SCORE';
   function doShips() {
     action_turn_preview = 0;
@@ -898,14 +899,16 @@ export function main() {
       }
     }
 
-    font.draw({
-      x: 4, w: 40,
-      y: SHIPY + SHIPH * TILEADV + 3, h: ui.font_height * 2 + 1,
-      z: Z.UI + 20,
-      align: font.ALIGN.HVCENTER | font.ALIGN.HWRAP,
-      text: 'Fix leak\nreward:',
-      style: style_fill_help,
-    });
+    if (ftue >= FTUE_SHOW_SCORE && false) {
+      font.draw({
+        x: 4, w: 40,
+        y: SHIPY + SHIPH * TILEADV + 3, h: ui.font_height * 2 + 1,
+        z: Z.UI + 20,
+        align: font.ALIGN.HVCENTER | font.ALIGN.HWRAP,
+        text: 'Fix leak\nreward:',
+        style: style_fill_help,
+      });
+    }
 
     let piece_info;
     for (let ii = one_ship ? 1 : 0; ii < (one_ship ? 2 : ships.length); ++ii) {
@@ -979,6 +982,8 @@ export function main() {
       }
     }
   }
+
+  let help_page = null;
 
   const PAD = 4;
   const SCORE_PAD = PAD * 2;
@@ -1115,7 +1120,47 @@ export function main() {
     // });
 
     // ui.menuUp();
+  }
 
+  const MAX_HELP_PAGE = 3;
+  function doHelp() {
+    let x = SCORE_X;
+    let y = PAD + TILE_SIZE;
+    let z = Z.UI;
+    let w = SCORE_W;
+
+    let text = `Help text here ${ftue}`;
+
+    let page = help_page !== null ? help_page : ftue;
+
+    if (page === 0) {
+      text = 'Welcome to Carpentangle\n\n' +
+        'You ship is sinking!  Luckily, you were transporting a shipment of match-3 games,' +
+        ' so you can use those pieces to plug the leak.';
+    } else if (page === 1) {
+      text = 'Plugging a leak will give you a little more time.\n\n' +
+        'Hint: You don\'t need to fix every leak perfectly, 1 or 2 errors on a placement' +
+        ' will only cost you an extra turn, which might be better than spending many turns' +
+        ' using smaller pieces.';
+    } else if (page === 2) {
+      text = 'Larger errors will cost more turns!  Watch out for those inevitable giant pieces!'+
+        '\n\n' +
+        '1-2 errors → -1⚡\n' +
+        '3-6 errors → -2⚡\n' +
+        '7-12 errors → -3⚡\n' +
+        '13-20 errors → -4⚡\n' +
+        '21-30 errors → -5⚡\n';
+    } else if (page === 3) {
+      text = 'Score is increased for more connected tiles of the same color (excluding damaged tiles).\n\n' +
+        'Damaged (dark red) tiles do NOT need to be filled in to fix a leak, however there is' +
+        ' no penalty for placing over a damaged tile, and doing so may increase your score!';
+    }
+
+    font.draw({
+      x, y, z, w,
+      align: font.ALIGN.HCENTER | font.ALIGN.HWRAP,
+      text,
+    });
   }
 
   let is_first_new_game = true;
@@ -1460,7 +1505,7 @@ export function main() {
     //   size: last_size,
     //   style: style_bottom_hint,
     // });
-    if (game.time_decrease && game.base_time > 1) {
+    if (game.time_decrease && game.base_time > 1 && (ftue >= FTUE_SHOW_SCORE || game.time_decrease < 4)) {
       font.draw({
         x: 0, w: game_width,
         y: game_height - 10,
@@ -1472,9 +1517,39 @@ export function main() {
       });
     }
 
-    if (ftue >= FTUE_SHOW_HIGH_SCORES) {
-      doHighScores(dt);
+    if (ftue < FTUE_DONE) {
+      doHelp();
+    } else {
+      let x = game_width - ui.button_height;
+      let y = 0;
+      let w = ui.button_height;
+      if (ui.buttonText({ x, y, w, text: right_mode === 'HIGHSCORES' ? '?' : 'X' })) {
+        if (right_mode === 'HIGHSCORES') {
+          right_mode = 'HELP';
+          if (help_page === null) {
+            help_page = MAX_HELP_PAGE;
+          }
+        } else {
+          right_mode = 'HIGHSCORES';
+        }
+      }
+      x -= ui.button_height + 2;
+      if (right_mode === 'HIGHSCORES') {
+        doHighScores();
+      } else if (right_mode === 'HELP') {
+        if (help_page < MAX_HELP_PAGE && ui.buttonText({ x, y, w, text: '→' })) {
+          help_page++;
+        }
+        x -= ui.button_height + 2;
+        if (help_page > 0 && ui.buttonText({ x, y, w, text: '←' })) {
+          help_page--;
+        }
+        x -= ui.button_height + 2;
+
+        doHelp();
+      }
     }
+
 
     drawBG();
 
