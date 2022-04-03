@@ -116,7 +116,7 @@ export function main() {
     },
     endless2: {
       display_name: 'Endless',
-      initial_turns: 12, base_time: 8,
+      initial_turns: 12, base_time: 7,
     },
   };
   let level_list = Object.keys(level_defs).map((key) => {
@@ -698,11 +698,11 @@ export function main() {
     floater_offs = 0;
     if (ship.miss < 1 && score.is_perfect) {
       floaterAdd(idx, 'Perfect!', style_floater_perfect);
-    } else if (ship.miss < 1) {
-      floaterAdd(idx, 'Excellent!', style_floater_good);
     } else if (ship.miss < 2) {
+      floaterAdd(idx, 'Excellent!', style_floater_good);
+    } else if (ship.miss < 3) {
       floaterAdd(idx, 'Good!', style_floater_good);
-    } else if (ship.miss < 4) {
+    } else if (ship.miss < 5) {
       floaterAdd(idx, 'Fine!', style_floater_fine);
     } else {
       floaterAdd(idx, 'Botched!', style_floater);
@@ -1228,7 +1228,7 @@ export function main() {
         z,
         align: font.ALIGN.VCENTER | font.ALIGN.HFIT,
         text: def.time_decrease ? `Difficulty+ every ${def.time_decrease}⚡` :
-          `Constant ${def.base_time}⚡ per fix`,
+          `Constant ${def.base_time}⚡ per leak`,
       });
       y += ui.button_height + 2;
     }
