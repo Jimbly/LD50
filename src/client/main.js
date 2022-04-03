@@ -195,7 +195,7 @@ export function main() {
 
   const M3W = 8;
   const M3H = 7;
-  const M3VARIETY = 1;
+  const M3VARIETY = 3;
   const M3COLORS = [
     // pico8.colors[8],
     // pico8.colors[11],
@@ -715,7 +715,7 @@ export function main() {
     // actual pieces placed while drawing
     game.actions++;
     game.piece = null;
-    game.time_left--;
+    game.time_left = max(0, game.time_left - 1);
     let score = shipCalcScore(ship);
     if (score.done) {
       // remove and score ship
@@ -1129,9 +1129,14 @@ export function main() {
     y += 4;
 
     function newGame(def, seed, force_new) {
+      game = null;
       if (def.saved && !force_new) {
         game = gameFromJSON(def.saved);
-      } else {
+        if (!game.time_left) {
+          game = null;
+        }
+      }
+      if (!game) {
         if (is_first_new_game) {
           is_first_new_game = false;
           seed = def.default_seed;
@@ -1185,7 +1190,7 @@ export function main() {
       x: LEFT_BAR_X + (LEFT_BAR_W - ui.button_width) / 2,
       y: LEFT_BUTTON_Y,
       z,
-      text: 'Cancel',
+      text: game.actions ? 'Resume Game' : 'Let\'s go!',
     })) {
       left_mode = 'SCORE';
     }

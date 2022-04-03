@@ -9,7 +9,6 @@ Ludum Dare 50 Entry by Jimbly - "Carpentangle"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
-  selecting previous level in level select that's saved, but ended, should just start a new one
   Tutorial text (FTUE-based with forward/back arrows) in upper right
   Your ship is sinking! Quick, repair it using the cargo of match three games!
   Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
