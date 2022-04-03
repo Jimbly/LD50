@@ -9,19 +9,21 @@ Ludum Dare 50 Entry by Jimbly - "TBD"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
+  Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
+  Reasonable default seeds for all difficulty levels
+    Try 4 colors instead of 3
+      Set this just for some difficulty levels
   Theming
     - bubbles
     - stormy above
-  Try 4 colors instead of 3
-    Set this just for some difficulty levels
-Feedback:
-  Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
 Polish:
-  Reasonable default seeds for all difficulty levels
+  Panel GFX and color for restart dialog
+  Sound FX
+  Music
   Animate time ticking up/down
   Maybe allow placing large pieces straddling two ships
+  Splash screen / title / name / logo / intro blurb?
   Add fullscreen button in corner
-  Panel GFX and color for restart dialog
 
 Ideas:
 

@@ -1263,7 +1263,8 @@ export function main() {
   let level_change_time;
   const LEVEL_TRANS_TIME = 1000;
   function updateWavesLevel() {
-    let level = (game.level_def.initial_turns - game.time_left) / game.level_def.initial_turns;
+    let eff_max = game.level_def.initial_turns * 1.5;
+    let level = (eff_max - game.time_left) / eff_max;
     level = clamp(level, 0.01, 0.95);
     if (level !== desired_level) {
       last_level = last_level_eff;
