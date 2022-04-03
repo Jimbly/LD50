@@ -13,6 +13,7 @@ Next:
     - bubbles
     - stormy above
   Try 4 colors instead of 3
+    Set this just for some difficulty levels
 Feedback:
   Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
   JK did not discover you could place things such that you get a miss - kept just choosing small pieces

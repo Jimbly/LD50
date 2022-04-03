@@ -190,6 +190,7 @@ export function main() {
     vec4(1,0.6,0.5,1),
     vec4(0.5,1,0.5,1),
     vec4(0.5,0.5,1,1),
+    vec4(1.0,0.5,1,1),
 
     // vec4(0.5,0.8,1.0,1),
     // vec4(0.7,1,0.5,1),
@@ -1188,6 +1189,14 @@ export function main() {
           z: Z.MODAL,
           align: font.ALIGN.HVCENTER,
           text: 'Hint: You\'ll need to sometimes imperfectly patch just to finish filling a pattern.',
+        });
+      } else {
+        font.draw({
+          x: 0, w: game_width,
+          y: -10, h: game_height,
+          z: Z.MODAL,
+          align: font.ALIGN.HVCENTER,
+          text: 'Check the high score list, leave your mark for all to see.',
         });
       }
 
