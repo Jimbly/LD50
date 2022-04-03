@@ -12,7 +12,6 @@ Next:
   Theming
     - bubbles
     - stormy above
-  Try: damaged counts as empty (actually just goes empty?)
   Allow some number of misses per ship, or ramp them smoother to be nicer?
   Some holes should be notably smaller / easier, at least at the beginning
   Try 4 colors instead of 3

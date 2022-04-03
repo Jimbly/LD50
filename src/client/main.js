@@ -5,7 +5,7 @@ local_storage.setStoragePrefix('ld50'); // Before requiring anything else that m
 const camera2d = require('glov/client/camera2d.js');
 const engine = require('glov/client/engine.js');
 const input = require('glov/client/input.js');
-const { abs, floor, max, min, random, round, sin } = Math;
+const { abs, floor, max, min, random, round, sin, sqrt } = Math;
 const net = require('glov/client/net.js');
 const pico8 = require('glov/client/pico8.js');
 const { randCreate, mashString } = require('glov/common/rand_alea.js');
@@ -13,7 +13,7 @@ const score_system = require('glov/client/score.js');
 const { createSprite, queueraw4 } = require('glov/client/sprites.js');
 const textures = require('glov/client/textures.js');
 const ui = require('glov/client/ui.js');
-const { clamp, clone, easeOut } = require('glov/common/util.js');
+const { clamp, clone, easeOut, plural } = require('glov/common/util.js');
 const { unit_vec, vec2, vec4 } = require('glov/common/vmath.js');
 
 window.Z = window.Z || {};
@@ -114,9 +114,11 @@ export function main() {
   }
 
   const style_minus_turn = font.style(null, {
-    color: 0x000000ff,
+    color: 0xFF0000ff,
     outline_width: 1,
-    outline_color: 0x000000ff,
+    outline_color: 0xFF0000ff,
+    glow_color: 0x000000ff,
+    glow_outer: 2.5,
   });
   const style_fill_help = font.style(null, {
     color: 0xFFFFFFff,
@@ -129,6 +131,9 @@ export function main() {
   const style_fill_help_done = font.style(style_fill_help, {
     color: 0x00FF00ff,
     glow_color: 0x006600ff,
+  });
+  const style_fill_help_worse = font.style(style_fill_help, {
+    color: 0xFF5050ff,
   });
   const style_bottom_hint = font.style(style_fill_help, {
     color: 0xDDDDDDff,
@@ -272,7 +277,6 @@ export function main() {
       game.ships.push(newShip(game));
     }
     game.piece = null;
-    game.miss = 0;
     game.score = 0;
     game.actions = 0;
     game.time_left = level_def.initial_turns || 10;
@@ -283,11 +287,11 @@ export function main() {
     'm3board',
     'ships',
     'piece',
-    'miss',
     'score',
     'actions',
     'time_left',
     'dismissed',
+    'time_decrease',
   ];
   function gameFromJSON(obj) {
     let game = new Game(obj.level);
@@ -556,6 +560,10 @@ export function main() {
     saveGame(game);
   }
 
+  function missesToTurnLoss(num_misses) {
+    return round(sqrt(num_misses));
+  }
+
   const SHIP_PAD = TILEADV * 3;
   const SHIP_VIS_W = TILEADV * SHIPW + SHIP_PAD;
   const SHIPX = (game_width - (SHIP_VIS_W * NUM_SHIPS - SHIP_PAD)) / 2;
@@ -580,6 +588,7 @@ export function main() {
         let do_place = input.click({
           max_dist: Infinity,
         });
+        let num_misses = 0;
         for (let ii = 0; ii < members.length; ++ii) {
           let pos = members[ii];
           let [tx, ty] = pos;
@@ -596,12 +605,8 @@ export function main() {
             place = SHIP_DAMAGED;
             zz--;
             // color = SHIP_COLORS[SHIP_DAMAGED];
-            temp_ship.miss++;
-            if (do_place) {
-              game.miss++;
-              ship.miss++;
-            }
             member_info.push(SHIP_DAMAGED_PREVIEW);
+            num_misses++;
           } else {
             member_info.push(piece.tile);
           }
@@ -612,6 +617,13 @@ export function main() {
             if (do_place) {
               board[ty][tx] = place;
             }
+          }
+        }
+        if (num_misses) {
+          let dt = missesToTurnLoss(num_misses);
+          temp_ship.miss += dt;
+          if (do_place) {
+            ship.miss += dt;
           }
         }
         if (do_place) {
@@ -629,26 +641,33 @@ export function main() {
         drawTile(x, y, z, tile);
       }
     }
+    let orig_score = shipCalcScore(ship);
     let score = shipCalcScore(temp_ship || ship);
-    let style = style_fill_help;
-    if (score.done) {
-      style = style_fill_help_done;
-    }
     font.draw({
       x: x0, w: SHIP_VIS_W - SHIP_PAD,
       y: y0 + SHIPH * TILEADV,
       z: Z.UI + 20,
       align: font.ALIGN.HCENTER,
-      text: `Fill for +${score.time} Turns`,
-      style,
+      text: orig_score.time !== score.time ?
+        `Fill for +${orig_score.time} → +${score.time} Turns` :
+        `Fill for +${score.time} Turns`,
+      style:
+        score.time < orig_score.time ? style_fill_help_worse :
+        score.done ? style_fill_help_done :
+        style_fill_help,
     });
     font.draw({
       x: x0, w: SHIP_VIS_W - SHIP_PAD,
       y: y0 + SHIPH * TILEADV + ui.font_height + 1,
       z: Z.UI + 20,
       align: font.ALIGN.HCENTER,
-      text: `${score.score} Points`,
-      style,
+      text: orig_score.score !== score.score ?
+        `${orig_score.score} → ${score.score} Points` :
+        `${score.score} Points`,
+      style:
+        score.score < orig_score.score ? style_fill_help_worse :
+        score.done ? style_fill_help_done :
+        style_fill_help,
     });
     return piece_info;
   }
@@ -663,11 +682,14 @@ export function main() {
     }
   }
 
+  let left_mode = 'SCORE';
   function doShips() {
     let { ships, piece } = game;
     let pos = input.mousePos(mouse_pos);
     let piece_ship = -1;
-    if (piece && input.mouse_ever_moved) {
+    let do_piece = piece && input.mouse_ever_moved &&
+      left_mode !== 'NEWGAME' && !ui.isMenuUp();
+    if (do_piece) {
       if (ALLOW_ROTATE && input.click({ button: 2 })) {
         rotate(piece);
       }
@@ -687,31 +709,51 @@ export function main() {
     for (let ii = 0; ii < ships.length; ++ii) {
       piece_info = doShip(SHIPX + ii * SHIP_VIS_W, SHIPY, ships[ii], piece_ship === ii) || piece_info;
     }
-    if (piece && input.mouse_ever_moved) {
+    if (do_piece) {
       let { members, tile, xoffs, yoffs } = piece;
 
       let z = Z.UI + 10;
+      let xmin = Infinity;
+      let xmax = -Infinity;
+      let ymin = Infinity;
+      let ymax = -Infinity;
+      let num_misses = 0;
       for (let ii = 0; ii < members.length; ++ii) {
         let [xx, yy] = members[ii];
         let pi = piece_info && piece_info[ii];
         let x = pi ? pi[0] : pos[0] + xx * TILEADV - xoffs;
         let y = pi ? pi[1] : pos[1] + yy * TILEADV - yoffs;
+        xmin = min(xmin, x);
+        xmax = max(xmax, x);
+        ymin = min(ymin, y);
+        ymax = max(ymax, y);
         drawTile(x, y, z, pi ? pi[2] : tile);
         if (pi && pi[2] === SHIP_DAMAGED_PREVIEW) {
-          font.draw({
-            x, y, w: TILE_SIZE, h: TILE_SIZE,
-            z: z + 1,
-            align: font.ALIGN.HVCENTERFIT,
-            text: '-1 Turn',
-            style: style_minus_turn,
-            size: ui.font_height / 2,
-          });
+          num_misses++;
         }
+      }
+      if (num_misses) {
+        let text_y = ymax < SHIPY + TILEADV * (SHIPH - 2) ?
+          ymax + TILEADV + TILE_PAD :
+          ymin - TILE_PAD * 2 - ui.font_height;
+        let text_x =(xmin + xmax + TILE_SIZE) / 2;
+        let dt = missesToTurnLoss(num_misses);
+        let w = font.draw({
+          x: text_x, w: 0,
+          y: text_y,
+          z: z + 22,
+          align: font.ALIGN.HCENTER,
+          text: `${num_misses} ${num_misses > 1 ? 'misses' : 'miss'}, -${dt} ${plural(dt, 'Turn')}`,
+          style: style_minus_turn,
+        });
+        w = w / 2 + TILE_PAD;
+        ui.drawRect(text_x - w, text_y - TILE_PAD,
+          text_x + w, text_y + ui.font_height + TILE_PAD,
+          z + 21, [1,1,1,0.5]);
       }
     }
   }
 
-  let left_mode = 'SCORE';
   const PAD = 4;
   const SCORE_PAD = PAD * 2;
   const scores_bg = vec4(0.2, 0.2, 0.2, 1);
@@ -920,7 +962,7 @@ export function main() {
       game.time_left < 4 ? 0xFFFF00ff : 0xFFFFFFff;
     let time_alpha;
     if (game.time_left === 1) {
-      time_alpha = (1 - abs(sin(engine.frame_timestamp * 0.005)));
+      time_alpha = (1 - abs(sin(engine.frame_timestamp * 0.008)));
     }
     let y = 10;
     if (!game.time_left) {
@@ -1056,6 +1098,8 @@ export function main() {
     return ret;
   }
   const WAVE_TOP_H = 3;
+  const wave_color_regular = [0.043, 0.129, 0.424,1];
+  const wave_color_final = [0.3, 0.05, 0.1,1];
   function drawWaves() {
     let x0 = camera2d.x0Real();
     let x1 = camera2d.x1Real();
@@ -1080,7 +1124,7 @@ export function main() {
         xx1, y + wave,
         Z.WAVES,
         0, 0, 1, 1,
-        unit_vec);
+        game.time_left === 1 ? wave_color_final : wave_color_regular);
       queueraw4([textures.textures.wave_top],
         xx0, y + last_wave - WAVE_TOP_H,
         xx0, y + last_wave + WAVE_TOP_H,
@@ -1140,7 +1184,7 @@ export function main() {
       x: 0, w: game_width,
       y: game_height - 10 - last_size,
       align: font.ALIGN.HCENTER,
-      text: `Completely patching a hole rewards ${game.base_time} turns minus any misses accumulated while patching`,
+      text: `Completely patching a hole rewards ${game.base_time} Turns minus penalty from misses`,
       size: last_size,
       style: style_bottom_hint,
     });
