@@ -195,7 +195,7 @@ export function main() {
 
   const M3W = 8;
   const M3H = 7;
-  const M3VARIETY = 3;
+  const M3VARIETY = 1;
   const M3COLORS = [
     // pico8.colors[8],
     // pico8.colors[11],
@@ -603,20 +603,26 @@ export function main() {
 
   let floaters = [];
 
+  let floater_offs;
   function floaterAdd(ship_idx, msg, style) {
     floaters.push({
       ship_idx, msg,
-      time: engine.frame_timestamp,
+      floater_offs,
+      time: engine.frame_timestamp + floater_offs * 250,
       style,
     });
+    ++floater_offs;
   }
 
-  const FLOATER_TIME = 1000;
+  const FLOATER_TIME = 2000;
   function floatersDraw(idx, x, y, w) {
     for (let ii = floaters.length - 1; ii >= 0; --ii) {
       let floater = floaters[ii];
       let dt = engine.frame_timestamp - floater.time;
       let progress = dt / FLOATER_TIME;
+      if (progress < 0) {
+        continue;
+      }
       if (progress >= 1) {
         ridx(floaters, ii);
         continue;
@@ -624,7 +630,7 @@ export function main() {
       if (floater.ship_idx === idx) {
         font.draw({
           x, w,
-          y: y - easeOut(progress, 2) * 20 + TILE_SIZE * 2,
+          y: y - easeOut(progress, 2) * 30 + TILE_SIZE * 2 + floater.floater_offs * 5,
           z: Z.UI2 + 10,
           align: font.ALIGN.HCENTER | font.ALIGN.HWRAP,
           text: floater.msg,
@@ -687,17 +693,21 @@ export function main() {
       game.old_ships[idx] = null;
       game.ship_alpha[idx] = easeOut(progress, 2);
     });
-    let text = `\n+${score.score} Points`;
+    floater_offs = 0;
     if (ship.miss < 1 && score.is_perfect) {
-      floaterAdd(idx, `Perfect!${text}`, style_floater_perfect);
+      floaterAdd(idx, 'Perfect!', style_floater_perfect);
     } else if (ship.miss < 1) {
-      floaterAdd(idx, `Excellent!${text}`, style_floater_good);
+      floaterAdd(idx, 'Excellent!', style_floater_good);
     } else if (ship.miss < 2) {
-      floaterAdd(idx, `Good!${text}`, style_floater_good);
+      floaterAdd(idx, 'Good!', style_floater_good);
     } else if (ship.miss < 4) {
-      floaterAdd(idx, `Fine!${text}`, style_floater_fine);
+      floaterAdd(idx, 'Fine!', style_floater_fine);
     } else {
-      floaterAdd(idx, `Botched!${text}`, style_floater);
+      floaterAdd(idx, 'Botched!', style_floater);
+    }
+    floaterAdd(idx, `+${score.time} Turns`, style_floater_good);
+    if (ftue >= FTUE_SHOW_SCORE) {
+      floaterAdd(idx, `+${score.score} Points`, style_floater_good);
     }
   }
 
