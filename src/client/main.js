@@ -222,6 +222,7 @@ export function main() {
   }
   function newShip(game) {
     let { rand } = game;
+    let ship_idx = game.num_ships++;
     let ship = {
       miss: 0,
       board: [],
@@ -234,6 +235,30 @@ export function main() {
         row.push(is_edge ? rand.range(3) ? SHIP_BORDER : SHIP_EMPTY : SHIP_EMPTY);
       }
       board.push(row);
+    }
+    // clear some border pieces
+    {
+      let chance = ship_idx === 0 ? 1.0 : ship_idx === 1 ? 0.5 : 0.05;
+      let to_clear = [];
+      for (let yy = 0; yy < board.length; ++yy) {
+        let row = board[yy];
+        for (let xx = 0; xx < row.length; ++xx) {
+          if (row[xx] === SHIP_EMPTY) {
+            let neighbors = 0;
+            for (let kk = 0; kk < DX.length; ++kk) {
+              if (boardGet(board, xx + DX[kk], yy + DY[kk], SHIP_BORDER) === SHIP_EMPTY) {
+                neighbors++;
+              }
+            }
+            if (neighbors !== 4 && rand.random() < chance) {
+              to_clear.push([xx,yy]);
+            }
+          }
+        }
+      }
+      to_clear.forEach((pair) => {
+        board[pair[1]][pair[0]] = SHIP_BORDER;
+      });
     }
     for (let yy = 0; yy < board.length; ++yy) {
       let row = board[yy];
@@ -273,6 +298,7 @@ export function main() {
       game.m3board.push(row);
     }
     game.ships = [];
+    game.num_ships = 0;
     for (let ii = 0; ii < NUM_SHIPS; ++ii) {
       game.ships.push(newShip(game));
     }
@@ -292,6 +318,7 @@ export function main() {
     'time_left',
     'dismissed',
     'time_decrease',
+    'num_ships',
   ];
   function gameFromJSON(obj) {
     let game = new Game(obj.level);

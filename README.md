@@ -12,8 +12,6 @@ Next:
   Theming
     - bubbles
     - stormy above
-  Allow some number of misses per ship, or ramp them smoother to be nicer?
-  Some holes should be notably smaller / easier, at least at the beginning
   Try 4 colors instead of 3
 Feedback:
   Need to adjust first experience so that a stupid player can finish at least one ship to learn the ropes!
