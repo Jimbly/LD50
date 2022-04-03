@@ -537,6 +537,7 @@ export function main() {
     let count = {};
     let { board } = ship;
     let score = 100;
+    let is_perfect = true;
     for (let ii = 0; ii < ship_used.length; ++ii) {
       let row = ship_used[ii];
       for (let jj = 0; jj < row.length; ++jj) {
@@ -548,6 +549,9 @@ export function main() {
         return 0;
       }
       if (board[y][x] !== match) {
+        if (board[y][x] !== SHIP_BORDER) {
+          is_perfect = false;
+        }
         return 0;
       }
       ship_used[y][x] = 1;
@@ -572,6 +576,7 @@ export function main() {
       time: max(1, game.base_time - (ship.miss || 0)),
       done: !count[SHIP_EMPTY],
       score,
+      is_perfect,
     };
   }
 
@@ -598,9 +603,9 @@ export function main() {
       if (floater.ship_idx === idx) {
         font.draw({
           x, w,
-          y: y - easeOut(progress, 2) * 20,
+          y: y - easeOut(progress, 2) * 20 + TILE_SIZE * 2,
           z: Z.UI2 + 10,
-          align: font.ALIGN.HCENTER,
+          align: font.ALIGN.HCENTER | font.ALIGN.HWRAP,
           text: floater.msg,
           size: ui.font_size * 2,
           style: floater.style,
@@ -648,16 +653,17 @@ export function main() {
       game.old_ships[idx] = null;
       game.ship_alpha[idx] = easeOut(progress, 2);
     });
-    if (ship.miss < 1) {
-      floaterAdd(idx, 'Perfect!', style_floater_perfect);
+    let text = `\n+${score.score} Points`;
+    if (ship.miss < 1 && score.is_perfect) {
+      floaterAdd(idx, `Perfect!${text}`, style_floater_perfect);
+    } else if (ship.miss < 1) {
+      floaterAdd(idx, `Excellent!${text}`, style_floater_good);
     } else if (ship.miss < 2) {
-      floaterAdd(idx, 'Excellent!', style_floater_good);
-    } else if (ship.miss < 3) {
-      floaterAdd(idx, 'Good!', style_floater_good);
+      floaterAdd(idx, `Good!${text}`, style_floater_good);
     } else if (ship.miss < 4) {
-      floaterAdd(idx, 'Fine!', style_floater_fine);
+      floaterAdd(idx, `Fine!${text}`, style_floater_fine);
     } else {
-      floaterAdd(idx, 'Botched!', style_floater);
+      floaterAdd(idx, `Botched!${text}`, style_floater);
     }
   }
 
