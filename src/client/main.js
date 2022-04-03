@@ -17,7 +17,7 @@ const { createSprite, queueraw4 } = require('glov/client/sprites.js');
 const textures = require('glov/client/textures.js');
 const ui = require('glov/client/ui.js');
 const { clamp, clone, easeIn, easeOut, plural, ridx } = require('glov/common/util.js');
-const { unit_vec, vec2, vec4 } = require('glov/common/vmath.js');
+const { unit_vec, vec2, vec4, v4set } = require('glov/common/vmath.js');
 
 window.Z = window.Z || {};
 Z.BACKGROUND = 1;
@@ -46,7 +46,7 @@ const FTUE_SHOW_LEVEL_SELECT = FTUE_DONE;
 let ftue = FTUE_INIT;
 
 let right_mode = 'HIGHSCORES';
-let left_mode = 'SCORE';
+let left_mode = 'NEGAME'; //'SCORE'; // donotcheckin
 
 export function main() {
   if (engine.DEBUG) {
@@ -68,6 +68,7 @@ export function main() {
     show_fps: false,
     do_borders: false,
     ui_sprites: {
+      panel: ['ui/panel', [128,256,128], [128,256,128]],
       button: ['ui/button', [128,768,128], [256]],
       button_down: ['ui/button_down', [128,768,128], [256]],
       button_disabled: ['ui/button_disabled', [100,56,100], [128]],
@@ -80,6 +81,8 @@ export function main() {
   gl.clearColor(0, 0.1, 0.3, 1);
   ui.scaleSizes(13 / 32);
   ui.setFontHeight(8);
+  ui.setPanelPixelScale(ui.button_height / 256);
+  v4set(ui.color_panel, 0.75, 0.75, 1, 1);
 
   sprites.bg = createSprite({
     name: 'bg',

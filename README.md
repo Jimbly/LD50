@@ -21,7 +21,6 @@ Next:
     - stormy above
     - swirling water in empty holes? - distinct from filled / error
 Polish:
-  Panel GFX and color for restart dialog
   Sound FX
   Music
   Animate time ticking up/down
