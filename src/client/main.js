@@ -45,6 +45,9 @@ const FTUE_DONE = 3;
 const FTUE_SHOW_LEVEL_SELECT = FTUE_DONE;
 let ftue = FTUE_INIT;
 
+let right_mode = 'HIGHSCORES';
+let left_mode = 'SCORE';
+
 export function main() {
   if (engine.DEBUG) {
     // Enable auto-reload, etc
@@ -86,7 +89,7 @@ export function main() {
   sprites.tiles = createSprite({
     name: 'tile',
     ws: [128,128,128,128],
-    hs: [128],
+    hs: [128,128],
   });
   textures.load({
     name: 'wave_body',
@@ -486,15 +489,23 @@ export function main() {
       alpha = 1;
     }
     color_temp[3] = alpha;
+    let frame = tile >= 0 ? tile : 0;
     sprites.tiles.draw({
       x: x - TILE_PAD/2, y: y - TILE_PAD/2,
       w: TILEADV, h: TILEADV,
       z: z - 1,
-      frame: 0,
+      frame,
       color: color_temp,
     });
     color[3] = alpha;
-    ui.drawRect(x, y, x + TILE_SIZE, y + TILE_SIZE, z, color);
+    sprites.tiles.draw({
+      x: x - TILE_PAD/2, y: y - TILE_PAD/2,
+      w: TILEADV, h: TILEADV,
+      z,
+      frame: frame + 4,
+      color,
+    });
+    //ui.drawRect(x, y, x + TILE_SIZE, y + TILE_SIZE, z, color);
     color[3] = 1;
   }
 
@@ -528,7 +539,7 @@ export function main() {
           w: TILEADV, h: TILEADV,
         };
         let click;
-        if (game.piece || !game.time_left) {
+        if (game.piece || !game.time_left || left_mode === 'NEWGAME') {
           // no input
         } else if ((click = input.mouseDownEdge(click_param))) {
           let match = getMatchShape(board, xx, yy);
@@ -873,8 +884,6 @@ export function main() {
     }
   }
 
-  let right_mode = 'HIGHSCORES';
-  let left_mode = 'SCORE';
   function doShips() {
     action_turn_preview = 0;
     let { ships, piece, old_ships, ship_alpha, ship_anims } = game;

@@ -9,13 +9,14 @@ Ludum Dare 50 Entry by Jimbly - "Carpentangle"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
+  Different shapes for pieces
+    apply to mode select too
   Balance
     Short level felt a little too hard for first game: survived only 44 turns
     Endless:
       66 turns, 31 turns left, 13 leaks plugged
         116 turns allowed, 19 penalty, 85 turns actually used
         Adjusting down to 7 => 103 turns allowed, would have 13 fewer extra turns
-  Different shapes for pieces
   Theming
     - bubbles
     - stormy above
