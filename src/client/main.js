@@ -13,6 +13,8 @@ const net = require('glov/client/net.js');
 const pico8 = require('glov/client/pico8.js');
 const { randCreate, mashString } = require('glov/common/rand_alea.js');
 const score_system = require('glov/client/score.js');
+const settings = require('glov/client/settings.js');
+const { soundPlayMusic, soundResumed, FADE } = require('glov/client/sound.js');
 const { createSprite, queueraw4 } = require('glov/client/sprites.js');
 const textures = require('glov/client/textures.js');
 const ui = require('glov/client/ui.js');
@@ -46,7 +48,7 @@ const FTUE_SHOW_LEVEL_SELECT = FTUE_DONE;
 let ftue = FTUE_INIT;
 
 let right_mode = 'HIGHSCORES';
-let left_mode = 'NEGAME'; //'SCORE'; // donotcheckin
+let left_mode = 'SCORE';
 
 export function main() {
   if (engine.DEBUG) {
@@ -72,6 +74,9 @@ export function main() {
       button: ['ui/button', [128,768,128], [256]],
       button_down: ['ui/button_down', [128,768,128], [256]],
       button_disabled: ['ui/button_disabled', [100,56,100], [128]],
+    },
+    sound: {
+      fade_rate: 0.0001,
     },
   })) {
     return;
@@ -105,6 +110,11 @@ export function main() {
     url: 'img/wave_top.png',
     wrap_s: gl.REPEAT,
     wrap_t: gl.CLAMP_TO_EDGE,
+  });
+  sprites.toggles = createSprite({
+    name: 'toggles',
+    ws: [128,128],
+    hs: [128,128],
   });
 
   const level_defs = {
@@ -1423,6 +1433,36 @@ export function main() {
     });
   }
 
+  let last_music_time = -Infinity;
+  let last_music_song;
+  const MUSIC_VOLUME = 0.1;
+  const songs = [
+    'song1.mp3',
+    'song2-30.mp3',
+    'song2-40.mp3',
+    'song2-80.mp3',
+  ];
+  function updateMusic(level) {
+    if (!soundResumed()) {
+      return;
+    }
+    let time_since_music_change = engine.frame_timestamp - last_music_time;
+    let song_idx = 0;
+    if (level > 0.5 && game.time_left) {
+      song_idx = floor((level - 0.5) * 2 * 3) + 1;
+    }
+    let desired_song = songs[song_idx];
+    if (last_music_song === desired_song) {
+      return;
+    }
+    if (time_since_music_change < 5000) {
+      return;
+    }
+    soundPlayMusic(desired_song, MUSIC_VOLUME, FADE);
+    last_music_time = engine.frame_timestamp;
+    last_music_song = desired_song;
+  }
+
   let last_level = 0;
   let last_level_eff = 0;
   let desired_level = 0;
@@ -1448,6 +1488,7 @@ export function main() {
     } else {
       level = last_level;
     }
+    updateMusic(level);
     return level;
   }
   const WAVES_SPLITS = 64;
@@ -1578,38 +1619,50 @@ export function main() {
       });
     }
 
-    if (ftue < FTUE_DONE) {
-      doHelp();
-    } else if (left_mode === 'NEWGAME') {
-      doHighScores();
-    } else {
-      let x = game_width - ui.button_height;
+    {
       let y = 0;
       let w = ui.button_height;
-      if (ui.buttonText({ x, y, w, text: right_mode === 'HIGHSCORES' ? '?' : 'X' })) {
-        if (right_mode === 'HIGHSCORES') {
-          right_mode = 'HELP';
-          if (help_page === null) {
-            help_page = 3;
-          }
-        } else {
-          right_mode = 'HIGHSCORES';
+      {
+        let x = M3X + M3_VIS_W + TILE_PAD;
+        if (ui.buttonImage({ x, y, w, img: sprites.toggles, frame: settings.music ? 0 : 1 })) {
+          settings.set('music', 1 - settings.music);
+        }
+        x += ui.button_height + 2;
+        if (ui.buttonImage({ x, y, w, img: sprites.toggles, frame: settings.sound ? 2 : 3 })) {
+          settings.set('sound', 1 - settings.sound);
         }
       }
-      x -= ui.button_height + 2;
-      if (right_mode === 'HIGHSCORES') {
-        doHighScores();
-      } else if (right_mode === 'HELP') {
-        if (help_page < MAX_HELP_PAGE && ui.buttonText({ x, y, w, text: '→' })) {
-          help_page++;
-        }
-        x -= ui.button_height + 2;
-        if (help_page > 0 && ui.buttonText({ x, y, w, text: '←' })) {
-          help_page--;
-        }
-        x -= ui.button_height + 2;
-
+      if (ftue < FTUE_DONE) {
         doHelp();
+      } else if (left_mode === 'NEWGAME') {
+        doHighScores();
+      } else {
+        let x = game_width - ui.button_height;
+        if (ui.buttonText({ x, y, w, text: right_mode === 'HIGHSCORES' ? '?' : 'X' })) {
+          if (right_mode === 'HIGHSCORES') {
+            right_mode = 'HELP';
+            if (help_page === null) {
+              help_page = 3;
+            }
+          } else {
+            right_mode = 'HIGHSCORES';
+          }
+        }
+        x -= ui.button_height + 2;
+        if (right_mode === 'HIGHSCORES') {
+          doHighScores();
+        } else if (right_mode === 'HELP') {
+          if (help_page < MAX_HELP_PAGE && ui.buttonText({ x, y, w, text: '→' })) {
+            help_page++;
+          }
+          x -= ui.button_height + 2;
+          if (help_page > 0 && ui.buttonText({ x, y, w, text: '←' })) {
+            help_page--;
+          }
+          x -= ui.button_height + 2;
+
+          doHelp();
+        }
       }
     }
 
