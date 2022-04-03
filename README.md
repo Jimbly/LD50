@@ -9,8 +9,6 @@ Ludum Dare 50 Entry by Jimbly - "TBD"
 Start with: `npm start` (after running `npm i` once)
 
 Next:
-  Simplify UI - hide high scores completely initially, otherwise have toggle to show them?  Auto-show when you get over X points?
-     Hide everything except the top and a single hole at first!
   Theming
     - bubbles
     - stormy above

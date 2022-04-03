@@ -35,6 +35,14 @@ const ALLOW_ROTATE = false;
 const colors_selected = ui.makeColorSet([0.5, 1, 0.5, 1]);
 let sprites = {};
 
+const FTUE_INIT = 0;
+const FTUE_SHOW_MULTIPLE_BOARDS = 2;
+const FTUE_SHOW_SCORE = 1;
+const FTUE_SHOW_HIGH_SCORES = 3;
+const FTUE_DONE = 4;
+const FTUE_SHOW_LEVEL_SELECT = FTUE_DONE;
+let ftue = FTUE_INIT;
+
 export function main() {
   if (engine.DEBUG) {
     // Enable auto-reload, etc
@@ -304,6 +312,9 @@ export function main() {
     for (let ii = 0; ii < NUM_SHIPS; ++ii) {
       game.ships.push(newShip(game));
     }
+    let t = game.ships[0];
+    game.ships[0] = game.ships[1];
+    game.ships[1] = t;
     game.piece = null;
     game.score = 0;
     game.actions = 0;
@@ -349,6 +360,7 @@ export function main() {
     let saved = local_storage.getJSON(`level.${level_def.name}`, null);
     if (saved) {
       level_def.saved = saved;
+      ftue = FTUE_DONE;
     }
   });
   function saveGame(game) {
@@ -639,6 +651,18 @@ export function main() {
   });
 
   function removeShip(ship, score) {
+    if (ftue < FTUE_SHOW_MULTIPLE_BOARDS) {
+      ftue = FTUE_SHOW_MULTIPLE_BOARDS;
+    }
+    if (ftue < FTUE_SHOW_SCORE) {
+      ftue = FTUE_SHOW_SCORE;
+    }
+    if (game.score) {
+      // second+ scoring
+      if (ftue < FTUE_SHOW_HIGH_SCORES) {
+        ftue = FTUE_SHOW_HIGH_SCORES;
+      }
+    }
     game.time_left += score.time;
     let idx = game.ships.indexOf(ship);
     game.old_ships[idx] = ship;
@@ -788,20 +812,22 @@ export function main() {
         style_fill_help,
       alpha,
     });
-    font.draw({
-      x: x0, w: SHIP_VIS_W - SHIP_PAD,
-      y: y0 + SHIPH * TILEADV + ui.font_height + 1,
-      z: Z.UI + 20,
-      align: font.ALIGN.HCENTER,
-      text: orig_score.score !== score.score ?
-        `${orig_score.score} → ${score.score} Points` :
-        `${score.score} Points`,
-      style:
-        score.score < orig_score.score ? style_fill_help_worse :
-        score.done ? style_fill_help_done :
-        style_fill_help,
-      alpha,
-    });
+    if (ftue >= FTUE_SHOW_SCORE) {
+      font.draw({
+        x: x0, w: SHIP_VIS_W - SHIP_PAD,
+        y: y0 + SHIPH * TILEADV + ui.font_height + 1,
+        z: Z.UI + 20,
+        align: font.ALIGN.HCENTER,
+        text: orig_score.score !== score.score ?
+          `${orig_score.score} → ${score.score} Points` :
+          `${score.score} Points`,
+        style:
+          score.score < orig_score.score ? style_fill_help_worse :
+          score.done ? style_fill_help_done :
+          style_fill_help,
+        alpha,
+      });
+    }
     return piece_info;
   }
   function rotate(piece) {
@@ -822,6 +848,7 @@ export function main() {
     let piece_ship = -1;
     let do_piece = piece && input.mouse_ever_moved &&
       left_mode !== 'NEWGAME' && !ui.isMenuUp();
+    let one_ship = ftue < FTUE_SHOW_MULTIPLE_BOARDS;
     if (do_piece) {
       if (ALLOW_ROTATE && input.click({ button: 2 })) {
         rotate(piece);
@@ -830,7 +857,9 @@ export function main() {
 
       // find cursor midpoint and choose ship
       let mpx = mouse_pos[0] - xoffs + (w * TILEADV - TILE_PAD) / 2;
-      if (mpx < SHIPX + SHIP_VIS_W - SHIP_PAD/2) {
+      if (one_ship) {
+        piece_ship = 1;
+      } else if (mpx < SHIPX + SHIP_VIS_W - SHIP_PAD/2) {
         piece_ship = 0;
       } else if (mpx < SHIPX + SHIP_VIS_W * 2 - SHIP_PAD/2) {
         piece_ship = 1;
@@ -849,7 +878,7 @@ export function main() {
     });
 
     let piece_info;
-    for (let ii = 0; ii < ships.length; ++ii) {
+    for (let ii = one_ship ? 1 : 0; ii < (one_ship ? 2 : ships.length); ++ii) {
       let ship = ships[ii];
       let piece_on_this_ship = piece_ship === ii;
       let alpha = 1;
@@ -935,7 +964,7 @@ export function main() {
 
     if (left_mode === 'NEWGAME' || !game.time_left && game.dismissed) {
       const SCORE_H = SHIPY - TILE_PAD - y;
-      ui.drawRect(x, y, x + SCORE_W, y + SCORE_H, z - 1, scores_bg);
+      ui.drawRect(x, y - 2, x + SCORE_W, y + SCORE_H, z - 1, scores_bg);
     }
 
     let need_name = score_system.player_name.indexOf('Anonymous') === 0;
@@ -946,7 +975,7 @@ export function main() {
     let header_size = size; // * 2
     let pad = size;
     font.drawSizedAligned(style_high_scores, x, y, z, header_size, font.ALIGN.HCENTERFIT, width, 0,
-      '            High Scores                  Turns');
+      '              High Scores                    Turns');
     y += header_size + 2;
     ui.drawLine(x + 8, y, x + SCORE_W - 8, y, z, LINE_W, 1, unit_vec);
     y += 2;
@@ -1002,11 +1031,11 @@ export function main() {
       }
     }
     y += set_pad;
-    if (found_me && need_name) {
+    if (found_me && need_name && !ui.isMenuUp()) {
       if (!scores_edit_box) {
         scores_edit_box = ui.createEditBox({
           z,
-          w: game_width / 4,
+          w: game_width / 5,
           placeholder: 'Enter player name',
         });
         if (!need_name) {
@@ -1015,12 +1044,12 @@ export function main() {
       }
 
       let submit = scores_edit_box.run({
-        x,
+        x: x + PAD,
         y,
       }) === scores_edit_box.SUBMIT;
 
       if (ui.buttonText({
-        x: x + scores_edit_box.w + 4,
+        x: x + scores_edit_box.w + PAD * 2,
         y: y - size * 0.25,
         z,
         w: size * 4,
@@ -1033,6 +1062,11 @@ export function main() {
         }
       }
       y += size;
+    }
+    if (!need_name) {
+      if (ftue < FTUE_DONE) {
+        ftue = FTUE_DONE;
+      }
     }
 
     y += pad;
@@ -1129,6 +1163,7 @@ export function main() {
     }
     let y = 10;
     if (!game.time_left) {
+      ftue = FTUE_DONE;
       y += side_size * 0.75;
       font.draw({
         x: LEFT_BAR_X, w: LEFT_BAR_W,
@@ -1168,31 +1203,35 @@ export function main() {
       x: LEFT_BAR_X, w: LEFT_BAR_W,
       y: y,
       align: font.ALIGN.HCENTER,
-      text: `Survived: ${game.actions}`,
+      text: `Survived: ${game.actions}${game.time_left ? '' : ' Turns'}`,
       style: style_bottom_hint,
     });
     y += ui.font_height;
     y += 4;
-    font.draw({
-      x: LEFT_BAR_X, w: LEFT_BAR_W,
-      y,
-      align: font.ALIGN.HCENTER,
-      text: 'Score',
-      style: style_score,
-      size: side_size * 0.75,
-    });
+    if (ftue >= FTUE_SHOW_SCORE) {
+      font.draw({
+        x: LEFT_BAR_X, w: LEFT_BAR_W,
+        y,
+        align: font.ALIGN.HCENTER,
+        text: 'Score',
+        style: style_score,
+        size: side_size * 0.75,
+      });
+    }
     y += side_size * 0.75;
-    font.draw({
-      x: LEFT_BAR_X, w: LEFT_BAR_W,
-      y,
-      align: font.ALIGN.HCENTER,
-      text: String(game.score),
-      style: style_score,
-      size: side_size,
-    });
+    if (ftue >= FTUE_SHOW_SCORE) {
+      font.draw({
+        x: LEFT_BAR_X, w: LEFT_BAR_W,
+        y,
+        align: font.ALIGN.HCENTER,
+        text: String(game.score),
+        style: style_score,
+        size: side_size,
+      });
+    }
     y += side_size;
 
-    if (ui.buttonText({
+    if (ftue >= FTUE_SHOW_LEVEL_SELECT && ui.buttonText({
       x: LEFT_BAR_X + (LEFT_BAR_W - ui.button_width) / 2,
       y: LEFT_BUTTON_Y,
       z: Z.UI2,
@@ -1371,7 +1410,9 @@ export function main() {
       });
     }
 
-    doHighScores(dt);
+    if (ftue >= FTUE_SHOW_HIGH_SCORES) {
+      doHighScores(dt);
+    }
 
     drawBG();
 
