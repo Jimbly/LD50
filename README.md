@@ -8,21 +8,10 @@ Ludum Dare 50 Entry by Jimbly - "Carpentangle"
 
 Start with: `npm start` (after running `npm i` once)
 
-Next:
-  Balance
-    Short level felt a little too hard for first game: survived only 44 turns; next 64 turnsu
-    Endless:
-      66 turns, 31 turns left, 13 leaks plugged
-        116 turns allowed, 19 penalty, 85 turns actually used
-        Adjusting down to 7 => 103 turns allowed, would have 13 fewer extra turns
-Polish:
-  Animate time ticking up/down
-  Splash screen / title / name / logo / intro blurb?
 Fix:
   Touch controls
-  missing MP3s
 
-Ideas:
+Original Ideas:
 
 * Graph flow - stop flow at one location at a time, or work behind lines to slow flow
   Theming: advance of an unstoppable military?
