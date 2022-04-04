@@ -94,7 +94,7 @@ let volume_override_target = 1;
 
 settings.register({
   volume: {
-    default_value: 1,
+    default_value: 0.5,
     type: cmd_parse.TYPE_FLOAT,
     range: [0,1],
   },
