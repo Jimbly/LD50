@@ -8,9 +8,6 @@ Ludum Dare 50 Entry by Jimbly - "Carpentangle"
 
 Start with: `npm start` (after running `npm i` once)
 
-Fix:
-  Touch controls
-
 Original Ideas:
 
 * Graph flow - stop flow at one location at a time, or work behind lines to slow flow

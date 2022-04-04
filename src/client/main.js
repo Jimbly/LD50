@@ -635,6 +635,9 @@ export function main() {
           match.xoffs = round((match.xoffs - TILEADV/2) / TILEADV) * TILEADV + TILEADV/2;
           match.yoffs = click.pos[1] - M3Y + TILE_PAD/2;
           match.yoffs = round((match.yoffs - TILEADV/2) / TILEADV) * TILEADV + TILEADV/2;
+          if (input.touch_mode) {
+            match.xoffs = (match.x + match.w + max(2, 4 - match.w/2)) * TILEADV + TILEADV/2;
+          }
           pickup(match);
         } else if (input.mouseOver(click_param)) {
           let match = getMatchShape(board, xx, yy);
@@ -980,8 +983,14 @@ export function main() {
     let { ships, piece, old_ships, ship_alpha, ship_anims } = game;
     let pos = input.mousePos(mouse_pos);
     let piece_ship = -1;
-    let do_piece = piece && input.mouse_ever_moved &&
-      left_mode !== 'NEWGAME' && !ui.isMenuUp();
+    if (piece && (
+      !input.touch_mode && !input.mouse_ever_moved ||
+      left_mode === 'NEWGAME' || ui.isMenuUp()
+    )) {
+      replacePiece();
+      piece = null;
+    }
+    let do_piece = Boolean(piece);
     let one_ship = ftue < FTUE_SHOW_MULTIPLE_BOARDS;
     if (do_piece) {
       if (ALLOW_ROTATE && input.click({ button: 2 })) {
@@ -1726,7 +1735,10 @@ export function main() {
     if (!engine.defines.NOUI) {
       doMatch3();
       doShips();
-      if (game.piece && released_mouse && input.click()) {
+      if (game.piece && (
+        !input.touch_mode && released_mouse && input.click() ||
+        input.touch_mode && !input.mouseDown()
+      )) {
         replacePiece();
       }
       if (!released_mouse && !input.mouseDown()) {
