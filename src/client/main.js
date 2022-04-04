@@ -152,7 +152,7 @@ export function main() {
       variety: 4,
     },
     endless2: {
-      display_name: 'Endless',
+      display_name: 'Endless?',
       initial_turns: 12, base_time: 7,
       variety: 3,
     },
