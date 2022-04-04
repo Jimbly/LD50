@@ -1,0 +1,63 @@
+GlyphSize 4096
+GlyphScale 1
+DFSize 64
+Spread 16
+PackSize 1024
+
+Output fonts/quicksand
+
+// Custom characters first
+Glyphs
+  GlyphSize 512
+  CustomChar 0xFFFD
+  CustomImage "custom/512/UFFFD.png"
+  CustomChar 0x25C9 // ◉
+  CustomImage "custom/512/coin.png"
+  CustomChar 0x26A1 // ⚡
+  CustomImage "custom/512/hourglass-thin.png"
+EndGlyphs
+
+Glyphs
+  Font "Quicksand-VariableFont_wght.ttf"
+  CharRange // ASCII
+    Start 0x0001
+    End   0x007F
+  EndCharRange
+EndGlyphs
+
+Glyphs
+  // CustomChar 0x26A1 // ⚡
+  // CustomImage "custom/4096/game-icons-net-cross-flare.png"
+  // CustomChar 0x25C9 // ◉
+  // CustomImage "custom/4096/game-icons-net-two-coins.png"
+  CustomChar 0x2190 // ← ↑ → ↓
+  CustomImage "custom/4096/arrow-left.png"
+  CustomChar 0x2191 // ← ↑ → ↓
+  CustomImage "custom/4096/arrow-up.png"
+  CustomChar 0x2192 // ← ↑ → ↓
+  CustomImage "custom/4096/arrow-right.png"
+  CustomChar 0x2193 // ← ↑ → ↓
+  CustomImage "custom/4096/arrow-down.png"
+EndGlyphs
+
+// A couple UI symbols not found in other fonts
+Glyphs
+  Font "MS Gothic.ttc"
+
+  Char 0x2022 // Bullet
+  Char 0x2122 // TM
+  Char 0x221E // Infinity
+  // CharRange // Low ASCII characters and useful icons
+  //   Start 0x25A0
+  //   End   0x26FF
+  // EndCharRange
+
+  // Char 0x2713 // Light check
+  // Char 0x2714 // Heavy check
+  // Char 0x2715 // Light X
+  // Char 0x2716 // Heavy X
+
+  // Char 0x2605 // Black star
+  // Char 0x2606 // White star
+  // Char 0x2730 // shadowed white star
+EndGlyphs
