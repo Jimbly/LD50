@@ -11,16 +11,15 @@ const { fscreenAvailable, fscreenActive, fscreenEnter, fscreenExit } = require('
 const input = require('glov/client/input.js');
 const { abs, floor, max, min, random, round, sin, sqrt } = Math;
 const net = require('glov/client/net.js');
-const pico8 = require('glov/client/pico8.js');
 const { randCreate, mashString } = require('glov/common/rand_alea.js');
 const score_system = require('glov/client/score.js');
 const settings = require('glov/client/settings.js');
 const { soundPlayMusic, soundResumed, FADE } = require('glov/client/sound.js');
-const { createSprite, queueraw4, BLEND_ADDITIVE } = require('glov/client/sprites.js');
+const { createSprite, queueraw4 } = require('glov/client/sprites.js');
 const textures = require('glov/client/textures.js');
 const ui = require('glov/client/ui.js');
-const { clamp, clone, easeIn, easeOut, plural, ridx } = require('glov/common/util.js');
-const { unit_vec, vec2, v3set, vec4, v4set } = require('glov/common/vmath.js');
+const { clamp, clone, easeIn, easeOut, lerp, plural, ridx } = require('glov/common/util.js');
+const { unit_vec, vec2, vec4, v4set } = require('glov/common/vmath.js');
 
 window.Z = window.Z || {};
 Z.BACKGROUND = 1;
@@ -38,7 +37,6 @@ const TILE_SIZE = 13;
 
 const ALLOW_ROTATE = false;
 
-const colors_selected = ui.makeColorSet([0.5, 1, 0.5, 1]);
 let sprites = {};
 
 const FTUE_INIT = 0;
@@ -74,6 +72,7 @@ export function main() {
     ui_sprites: {
       panel: ['ui/panel', [128,256,128], [128,256,128]],
       button: ['ui/button', [128,768,128], [256]],
+      button_rollover: ['ui/button_rollover', [128,768,128], [256]],
       button_down: ['ui/button_down', [128,768,128], [256]],
       button_disabled: ['ui/button_disabled', [100,56,100], [128]],
     },
@@ -90,16 +89,25 @@ export function main() {
   }
   font = engine.font;
 
+  ui.loadUISprite('button_selected', [128,768,128], [256]);
+  ui.sprites.button_selected_rollover = ui.sprites.button_rollover;
+  ui.sprites.button_selected_down = ui.sprites.button_down;
+
   gl.clearColor(0, 0.1, 0.3, 1);
   ui.scaleSizes(13 / 32);
   ui.setFontHeight(8);
   ui.setPanelPixelScale(ui.button_height / 256);
-  v4set(ui.color_panel, 0.75, 0.75, 1, 1);
+  v4set(ui.color_panel, 1,1,1, 1);
 
   sprites.bg = createSprite({
     name: 'bg',
     wrap_s: gl.REPEAT,
     wrap_t: gl.CLAMP_TO_EDGE,
+  });
+  sprites.checker = createSprite({
+    name: 'checker',
+    wrap_s: gl.REPEAT,
+    wrap_t: gl.REPEAT,
   });
   sprites.swirl = createSprite({
     name: 'swirl',
@@ -120,6 +128,12 @@ export function main() {
   textures.load({
     name: 'wave_body',
     url: 'img/wave_body.png',
+    wrap_s: gl.REPEAT,
+    wrap_t: gl.CLAMP_TO_EDGE,
+  });
+  textures.load({
+    name: 'wave_body_last',
+    url: 'img/wave_body_last.png',
     wrap_s: gl.REPEAT,
     wrap_t: gl.CLAMP_TO_EDGE,
   });
@@ -147,7 +161,7 @@ export function main() {
     //   variety: 4,
     // },
     long2: {
-      display_name: 'Long (easier)',
+      display_name: 'Long',
       time_decrease: 35, initial_turns: 15, base_time: 8,
       variety: 4,
     },
@@ -167,51 +181,54 @@ export function main() {
   }
 
   const style_minus_turn = font.style(null, {
-    color: 0xFF0000ff,
-    outline_width: 1,
-    outline_color: 0xFF0000ff,
-    glow_color: 0x000000ff,
-    glow_outer: 2.5,
+    color: 0xFFFFFFff,
+    outline_width: 2,
+    outline_color: 0x000000ff,
   });
   const style_fill_help = font.style(null, {
     color: 0xFFFFFFff,
-    glow_color: 0x000000dd,
-    glow_xoffs: 2,
-    glow_yoffs: 2,
-    glow_inner: -2.5,
-    glow_outer: 7,
+    outline_color: 0x000000ff,
+    outline_width: 1,
   });
   const style_fill_help_done = font.style(style_fill_help, {
-    color: 0x00FF00ff,
-    glow_color: 0x006600ff,
+    color: 0xFFFFFFff,
+    outline_color: 0xFFFFFFff,
+    outline_width: 1.5,
   });
   const style_fill_help_worse = font.style(style_fill_help, {
-    color: 0xFF5050ff,
+    color: 0xFFFFFFff,
+    outline_color: 0xFFFFFFff,
+    outline_width: 0.5,
   });
   const style_bottom_hint = font.style(style_fill_help, {
-    color: 0xDDDDDDff,
-    glow_color: 0x00000090,
+    color: 0xFFFFFFff,
+    outline_color: 0x000000ff,
+    outline_width: 1,
   });
   ui.font_style_focused = ui.font_style_normal;
 
   const style_score = font.style(null, {
     color: 0xFFFFFFff,
-    glow_color: 0x00008033,
-    glow_xoffs: 0,
-    glow_yoffs: 0,
-    glow_inner: 0,
-    glow_outer: 5,
+    outline_color: 0x000000ff,
+    outline_width: 2,
+  });
+  const style_score_danger = font.style(null, {
+    color: 0xFFFFFFff,
+    outline_color: 0xFFFFFFff,
+    outline_width: 1,
   });
 
   const style_high_scores = font.style(null, {
     color: 0xFFFFFFff,
-    glow_color: 0x00000033,
-    glow_xoffs: 0,
-    glow_yoffs: 0,
-    glow_inner: 0,
-    glow_outer: 3,
+    outline_color: 0x000000ff,
+    outline_width: 1,
   });
   const style_level_select = style_high_scores;
+  const style_high_scores_me = font.style(null, {
+    color: 0xFFFFFFff,
+    outline_color: 0xFFFFFFff,
+    outline_width: 1,
+  });
 
   function encodeScore(score) {
     let actions = min(score.actions, 99999);
@@ -236,36 +253,10 @@ export function main() {
 
   const M3W = 8;
   const M3H = 7;
-  const M3COLORS = [
-    // pico8.colors[8],
-    // pico8.colors[11],
-    // pico8.colors[9],
-    // pico8.colors[15],
-
-    //vec4(1,0.5,0.5,1),
-    vec4(0.5,1,0.5,1),
-    vec4(0.5,0.5,1,1),
-    vec4(1,0.6,0.5,1),
-    vec4(1.0,0.5,1,1),
-
-    // vec4(0.5,0.8,1.0,1),
-    // vec4(0.7,1,0.5,1),
-    // vec4(0.8,0.6,1,1),
-
-    // v4fromRGBA(0x8884FFff),
-    // v4fromRGBA(0xFCBCB8ff),
-    // v4fromRGBA(0xFFF275ff),
-  ];
   const SHIP_EMPTY = -1;
   const SHIP_BORDER = -2;
   const SHIP_DAMAGED = -3;
   const SHIP_DAMAGED_PREVIEW = -4;
-  const SHIP_COLORS = {
-    [SHIP_EMPTY]: vec4(0,0,0,1),
-    [SHIP_BORDER]: null,
-    [SHIP_DAMAGED]: vec4(0.7,0.1,0,1),
-    [SHIP_DAMAGED_PREVIEW]: vec4(1,0.1,0,1),
-  };
   const NUM_SHIPS = 3;
   const SHIPW = 6;
   const SHIPH = 6;
@@ -534,63 +525,25 @@ export function main() {
     saveGame(game);
   }
 
-  let color_temp = vec4(1,1,1,1);
-  let color_swirl = vec4(0, 0, 0.25, 1);
-  let rand_cache = [];
-  function drawTile(x, y, z, tile, alpha) {
-    let color = M3COLORS[tile] || SHIP_COLORS[tile];
-    if (!color) {
+  const color_black = vec4(0,0,0,1);
+  function drawTile(x, y, z, tile, alpha, invert) {
+    if (tile === SHIP_BORDER) {
       return;
     }
+    let color = invert ? color_black : unit_vec;
     if (alpha === undefined) {
       alpha = 1;
     }
-    let frame = tile >= 0 ? tile : 0;
+    let frame = tile >= 0 ? tile : (tile === SHIP_DAMAGED || tile === SHIP_DAMAGED_PREVIEW) ? 5 : 4;
     x -= TILE_PAD/2;
     y -= TILE_PAD/2;
-    // background
-    color_temp[3] = alpha;
-    if (tile === SHIP_EMPTY) {
-      color_swirl[3] = alpha;
-      let randidx = x * 100000 + y;
-      let r1 = rand_cache[randidx];
-      let r2 = rand_cache[randidx + 0.5];
-      if (!r1) {
-        r1 = rand_cache[randidx] = random();
-        r2 = rand_cache[randidx + 0.5] = random();
-      }
-      sprites.swirl.draw({
-        x: x + TILEADV/2, y: y + TILEADV/2, z: z + 1,
-        w: TILE_SIZE, h: TILE_SIZE,
-        color: color_swirl,
-        rot: engine.frame_timestamp * -0.001 * (1 + r1 * 0.5),
-        blend: BLEND_ADDITIVE,
-      });
-      sprites.swirl.draw({
-        x: x + TILEADV/2, y: y + TILEADV/2, z: z + 2,
-        w: TILE_SIZE, h: TILE_SIZE,
-        color: color_swirl,
-        rot: engine.frame_timestamp * 0.001 * (1 + r2 * 0.5) + 1.3*r2,
-        blend: BLEND_ADDITIVE,
-      });
-      v3set(color_temp, 0.5, 0.5, 1);
-    } else {
-      v3set(color_temp, 1,1,1);
-    }
-    sprites.tiles.draw({
-      x, y,
-      w: TILEADV, h: TILEADV,
-      z: z - 1,
-      frame,
-      color: color_temp,
-    });
     // foreground
     color[3] = alpha;
     sprites.tiles.draw({
       x, y,
       w: TILEADV, h: TILEADV,
       z,
-      frame: frame + 4,
+      frame: frame,
       color,
     });
     //ui.drawRect(x, y, x + TILE_SIZE, y + TILE_SIZE, z, color);
@@ -646,7 +599,8 @@ export function main() {
             let [tx, ty] = pos;
             tx = M3X + tx * TILEADV;
             ty = M3Y + ty * TILEADV;
-            ui.drawRect(tx - 2, ty - 2, tx + TILE_SIZE + 2, ty + TILE_SIZE + 2, z - 1, [1,1,1,1]);
+            ui.drawRect(tx - 2, ty - 2, tx + TILE_SIZE + 2, ty + TILE_SIZE + 2, z +1, [1,1,1,1]);
+            drawTile(tx, ty, z+2, match.tile, 1, true);
           }
         }
       }
@@ -743,7 +697,7 @@ export function main() {
           text: floater.msg,
           size: ui.font_size * 2,
           style: floater.style,
-          alpha: 1 - progress,
+          //alpha: easeOut(1 - progress, 2),
         });
       }
     }
@@ -751,25 +705,8 @@ export function main() {
 
   let style_floater = font.style(null, {
     color: 0x000000ff,
-    outline_color: 0x000000ff,
-    outline_width: 2,
-    glow_color: 0xFFFFFF80,
-    glow_outer: 5,
-  });
-  const style_floater_perfect = font.style(style_floater, {
-    color: 0xFFFF00ff,
-    outline_color: 0xDDDDDDff,
-    glow_color: 0x00FF00ff,
-  });
-  const style_floater_good = font.style(style_floater, {
-    color: 0x00FF00ff,
-    outline_color: 0x00FF00ff,
-    glow_color: 0x002000ff,
-  });
-  const style_floater_fine = font.style(style_floater, {
-    color: 0x0000FFff,
-    outline_color: 0x0000FFff,
-    glow_color: 0x0000FFff,
+    outline_color: 0xFFFFFFff,
+    outline_width: 3,
   });
 
   function removeShip(ship, score) {
@@ -802,19 +739,19 @@ export function main() {
     });
     floater_offs = 0;
     if (ship.miss < 1 && score.is_perfect) {
-      floaterAdd(idx, 'Perfect!', style_floater_perfect);
+      floaterAdd(idx, 'Perfect!', style_floater);
     } else if (ship.miss < 2) {
-      floaterAdd(idx, 'Excellent!', style_floater_good);
+      floaterAdd(idx, 'Excellent!', style_floater);
     } else if (ship.miss < 3) {
-      floaterAdd(idx, 'Good!', style_floater_good);
+      floaterAdd(idx, 'Good!', style_floater);
     } else if (ship.miss < 5) {
-      floaterAdd(idx, 'Fine!', style_floater_fine);
+      floaterAdd(idx, 'Fine!', style_floater);
     } else {
       floaterAdd(idx, 'Botched!', style_floater);
     }
-    floaterAdd(idx, `+${score.time}⚡`, style_floater_good);
+    floaterAdd(idx, `+${score.time}⚡`, style_floater);
     if (ftue >= FTUE_SHOW_SCORE) {
-      floaterAdd(idx, `+${score.score} Points`, style_floater_good);
+      floaterAdd(idx, `+${score.score} Points`, style_floater);
     }
   }
 
@@ -889,7 +826,7 @@ export function main() {
           let member_info = [sx, sy];
           if (existing !== SHIP_EMPTY && existing !== SHIP_DAMAGED) {
             place = SHIP_DAMAGED;
-            zz--;
+            // zz--;
             // color = SHIP_COLORS[SHIP_DAMAGED];
             member_info.push(SHIP_DAMAGED_PREVIEW);
             num_misses++;
@@ -897,7 +834,7 @@ export function main() {
             member_info.push(piece.tile);
           }
           piece_info.push(member_info);
-          ui.drawRect(sx - 2, sy - 2, sx + TILE_SIZE + 2, sy + TILE_SIZE + 2, zz, color);
+          ui.drawRect(sx - 2, sy - 2, sx + TILE_SIZE + 2, sy + TILE_SIZE + 2, zz + 1, color);
           if (tx >= 0 && tx < SHIPW && ty >= 0 && ty < SHIPH) {
             temp_ship.board[ty][tx] = place;
             if (do_place) {
@@ -1064,7 +1001,7 @@ export function main() {
         xmax = max(xmax, x);
         ymin = min(ymin, y);
         ymax = max(ymax, y);
-        drawTile(x, y, z, pi ? pi[2] : tile);
+        drawTile(x, y, z, pi ? pi[2] : tile, 1, Boolean(pi));
         if (pi && pi[2] === SHIP_DAMAGED_PREVIEW) {
           num_misses++;
         }
@@ -1088,9 +1025,17 @@ export function main() {
           style: style_minus_turn,
         });
         w = w / 2 + TILE_PAD;
-        ui.drawRect(text_x - w, text_y - TILE_PAD,
+        ui.drawHollowRect(text_x - w, text_y - TILE_PAD,
           text_x + w, text_y + ui.font_height + TILE_PAD,
-          z + 21, [1,1,1,0.5]);
+          z + 21, 1, 1, unit_vec);
+        w *= 2;
+        let h = ui.font_height + TILE_PAD * 2;
+        sprites.checker.draw({
+          x: text_x - w/2, y: text_y - TILE_PAD,
+          w, h,
+          z: z + 20.5,
+          uvs: [0, 0, w, h],
+        });
       }
     }
   }
@@ -1099,15 +1044,15 @@ export function main() {
 
   const PAD = 4;
   const SCORE_PAD = PAD * 2;
-  const scores_bg = vec4(0.2, 0.2, 0.2, 1);
-  const scores_bg_shadow = vec4(0.2, 0.2, 0.2, 0.5);
+  // const scores_bg = vec4(0.2, 0.2, 0.2, 1);
+  // const scores_bg_shadow = vec4(0.2, 0.2, 0.2, 0.5);
   const SCORE_X = M3X + M3_VIS_W + SCORE_PAD;
   const LEFT_BAR_W = (game_width - M3_VIS_W) / 2;
   const LEFT_BAR_X = 0;
   const LEFT_BUTTON_Y = SHIPY - TILEADV - ui.button_height;
   const SCORE_W = game_width - SCORE_PAD - SCORE_X;
   const LINE_W = 0.4;
-  const SCORE_SHADOW = 2;
+  // const SCORE_SHADOW = 2;
 
   let scores_edit_box;
   function doHighScores() {
@@ -1115,12 +1060,12 @@ export function main() {
     let y = PAD;
     let z = Z.UI;
 
-    if (left_mode === 'NEWGAME' || !game.time_left && game.dismissed) {
-      const SCORE_H = SHIPY - TILE_PAD - y;
-      ui.drawRect(x, y - 2, x + SCORE_W, y + SCORE_H, z - 1, scores_bg);
-      ui.drawRect(x + SCORE_SHADOW, y - 2 + SCORE_SHADOW,
-        x + SCORE_W + SCORE_SHADOW, y + SCORE_H + SCORE_SHADOW, z - 1, scores_bg_shadow);
-    }
+    // if (left_mode === 'NEWGAME' || !game.time_left && game.dismissed) {
+    //   const SCORE_H = SHIPY - TILE_PAD - y;
+    //   ui.drawRect(x, y - 2, x + SCORE_W, y + SCORE_H, z - 1, scores_bg);
+    //   ui.drawRect(x + SCORE_SHADOW, y - 2 + SCORE_SHADOW,
+    //     x + SCORE_W + SCORE_SHADOW, y + SCORE_H + SCORE_SHADOW, z - 1, scores_bg_shadow);
+    // }
 
     let need_name = score_system.player_name.indexOf('Anonymous') === 0;
     let max_scores = need_name ? 9 : 13; // plus 1 for own score if not on list
@@ -1130,13 +1075,13 @@ export function main() {
     let header_size = size; // * 2
     let pad = size;
     font.drawSizedAligned(style_high_scores, x, y, z, header_size, font.ALIGN.HCENTERFIT, width, 0,
-      'High Scores');
+      `High Scores (${level_def.display_name})`);
     y += header_size + 2;
     ui.drawLine(x + 8, y, x + SCORE_W - 8, y, z, LINE_W, 1, unit_vec);
     y += 2;
     let level_id = level_def.name;
     let scores = score_system.high_scores[level_id];
-    let score_style = font.styleColored(style_high_scores, pico8.font_colors[7]);
+    let score_style = style_high_scores;
     if (!scores) {
       font.drawSizedAligned(score_style, x, y, z, size, font.ALIGN.HCENTERFIT, width, 0,
         'Loading...');
@@ -1174,7 +1119,7 @@ export function main() {
       let style = score_style;
       let drawme = false;
       if (s.name === score_system.player_name && !found_me) {
-        style = font.styleColored(style_high_scores, pico8.font_colors[11]);
+        style = style_high_scores_me;
         found_me = true;
         drawme = true;
       }
@@ -1252,8 +1197,9 @@ export function main() {
     if (page === 0) {
       text = 'Welcome to Carpentangle\n\n' +
         'You ship is sinking!  Luckily, you were transporting a shipment of match-3 games,' +
-        ' so you can use those pieces to plug the leak.\n\n\n\n' +
-        'This game was created in 48 Hours for Ludum Dare 50 by Jimbly';
+        ' so you can use those pieces to plug the leak.\n\n' +
+        'This game was created in 48 Hours for Ludum Dare 50 by Jimbly.\n\n' +
+        'And then monochromized a couple days later because it seemed fun.';
     } else if (page === 1) {
       text = 'Plugging a leak will give you a little more time.\n\n' +
         'Hint: You don\'t need to fix every leak perfectly, 1 or 2 errors on a placement' +
@@ -1319,16 +1265,18 @@ export function main() {
 
     for (let ii = 0; ii < level_list.length; ++ii) {
       let def = level_list[ii];
-      let colors;
+      let base_name;
+      //let colors;
       if (def.name === game.level) {
-        colors = colors_selected;
-        ui.drawRect(x + BUTTON_W/2, y+2, SCORE_X + 1, y + ui.button_height - 2,
-          z - 1, scores_bg);
-        ui.drawRect(x + BUTTON_W/2 + SCORE_SHADOW, y+2 + SCORE_SHADOW,
-          SCORE_X + 1 + SCORE_SHADOW, y + ui.button_height - 2 + SCORE_SHADOW,
-          z - 1, scores_bg_shadow);
+        //colors = colors_selected;
+        base_name = 'button_selected';
+        // ui.drawRect(x + BUTTON_W/2, y+2, SCORE_X + 1, y + ui.button_height - 2,
+        //   z - 1, scores_bg);
+        // ui.drawRect(x + BUTTON_W/2 + SCORE_SHADOW, y+2 + SCORE_SHADOW,
+        //   SCORE_X + 1 + SCORE_SHADOW, y + ui.button_height - 2 + SCORE_SHADOW,
+        //   z - 1, scores_bg_shadow);
       }
-      if (ui.buttonText({ x, y, z, text: def.display_name, w: BUTTON_W, colors })) {
+      if (ui.buttonText({ x, y, z, text: def.display_name, w: BUTTON_W, base_name })) {
         if (def.name === game.level) {
           if (!game.time_left) {
             newGame(def, null, true);
@@ -1351,38 +1299,38 @@ export function main() {
         sprites.tiles.draw({
           x: desc_x, y,
           w: size, h: size, z,
-          frame: 0, color: M3COLORS[0],
+          frame: 0,
         });
         sprites.tiles.draw({
           x: desc_x + size, y,
           w: size, h: size, z,
-          frame: 1, color: M3COLORS[1],
+          frame: 1,
         });
         sprites.tiles.draw({
           x: desc_x + size/2, y: y + size,
           w: size, h: size, z,
-          frame: 2, color: M3COLORS[2],
+          frame: 2,
         });
       } else {
         sprites.tiles.draw({
           x: desc_x, y,
           w: size, h: size, z,
-          frame: 0, color: M3COLORS[0],
+          frame: 0,
         });
         sprites.tiles.draw({
           x: desc_x + size, y,
           w: size, h: size, z,
-          frame: 1, color: M3COLORS[1],
+          frame: 1,
         });
         sprites.tiles.draw({
           x: desc_x, y: y + size,
           w: size, h: size, z,
-          frame: 2, color: M3COLORS[2],
+          frame: 2,
         });
         sprites.tiles.draw({
           x: desc_x + size, y: y + size,
           w: size, h: size, z,
-          frame: 3, color: M3COLORS[3],
+          frame: 3,
         });
       }
       desc_x += size*2 + PAD/2;
@@ -1414,13 +1362,18 @@ export function main() {
     }
     let side_size = 20;
     let preview_time_left = max(0, game.time_left + action_turn_preview);
-    let time_color = preview_time_left <= 2 ? 0xFF0000ff :
-      preview_time_left < 4 ? 0xFFFF00ff : 0xFFFFFFff;
+    let style = style_score;
+    if (preview_time_left <= 2) {
+      style = style_score_danger;
+    }
     let time_alpha;
     if (game.time_left === 1 && !preview_time_left ||
       preview_time_left === 0 && game.time_left > 0
     ) {
       time_alpha = (1 - abs(sin(engine.frame_timestamp * 0.008)));
+      if (time_alpha < 0.5) {
+        style = style_score;
+      }
     }
     let y = 8;
     if (!game.time_left) {
@@ -1431,9 +1384,8 @@ export function main() {
         y,
         align: font.ALIGN.HCENTER,
         text: 'Game Over',
-        style: style_score,
+        style,
         size: side_size,
-        color: time_color,
       });
       y += side_size;
     } else {
@@ -1443,9 +1395,7 @@ export function main() {
         align: font.ALIGN.HCENTER,
         text: 'Turns Left',
         size: side_size * 0.75,
-        style: style_score,
-        color: time_color,
-        alpha: time_alpha,
+        style,
       });
       y += side_size * 0.75;
       font.draw({
@@ -1456,9 +1406,7 @@ export function main() {
           `${game.time_left}⚡ → ${preview_time_left}⚡` :
           `${game.time_left}⚡`,
         size: side_size,
-        style: style_score,
-        color: time_color,
-        alpha: time_alpha,
+        style,
       });
       y += side_size;
     }
@@ -1608,9 +1556,9 @@ export function main() {
     return ret;
   }
   const WAVE_TOP_H = 3;
-  const wave_color_regular = vec4(0.043, 0.129, 0.424,1);
-  const wave_color_final = vec4(0.3, 0.05, 0.1,1);
-  const bubble_color = vec4(0.8, 0.9, 1.0, 1);
+  const wave_color_regular = unit_vec;
+  const wave_color_final = unit_vec;
+  const bubble_color = unit_vec;
   const BUBBLE_ALPHA = 0.125;
   const MAX_BUBBLES = 100;
   let bubbles = [];
@@ -1631,13 +1579,13 @@ export function main() {
       let xx1 = x0 + (ii + 1) * SPLIT_W;
       let wave = waveAt(xx1);
       let y = y0;
-      queueraw4([textures.textures.wave_body],
+      queueraw4([game.time_left === 1 ? textures.textures.wave_body_last : textures.textures.wave_body],
         xx0, y + last_wave,
         xx0, y1,
         xx1, y1,
         xx1, y + wave,
         Z.WAVES,
-        0, 0, 1, 1,
+        xx0/128, 0, xx1/128, lerp(0.25, game_height - (y + wave), y1)/256,
         game.time_left === 1 ? wave_color_final : wave_color_regular);
       queueraw4([textures.textures.wave_top],
         xx0, y + last_wave - WAVE_TOP_H,
@@ -1651,6 +1599,9 @@ export function main() {
       last_wave = wave;
     }
 
+    if (1) {
+      return;
+    }
     let is_startup = bubbles.length === 0;
     while (bubbles.length < MAX_BUBBLES) {
       bubbles.push({
@@ -1687,6 +1638,7 @@ export function main() {
   }
 
   function stateTest(dt) {
+    gl.clearColor(0,0,0,0);
     if (left_mode === 'SCORE') {
       doLeftBar();
     } else {
@@ -1829,7 +1781,9 @@ export function main() {
     }
 
 
-    drawBG();
+    if (0) {
+      drawBG();
+    }
 
     drawWaves();
   }

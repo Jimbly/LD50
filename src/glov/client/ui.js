@@ -58,7 +58,7 @@ export function focuslog(...args) {
   // console.log(`focuslog(${glov_engine.frame_index}): `, ...args);
 }
 
-let color_set_shades = vec4(1, 0.8, 0.7, 0.4);
+let color_set_shades = vec4(1, 1, 1, 1);
 
 const Z_MIN_INC = 1e-5;
 
@@ -176,11 +176,11 @@ export let tooltip_width = 400;
 export let tooltip_pad = 8;
 
 export let font_style_focused = glov_font.style(null, {
-  color: 0x000000ff,
+  color: 0xFFFFFFff,
   outline_width: 2,
-  outline_color: 0xFFFFFFff,
+  outline_color: 0x000000ff,
 });
-export let font_style_normal = glov_font.styleColored(null, 0x000000ff);
+export let font_style_normal = font_style_focused;
 
 export let font;
 export let title_font;
@@ -188,7 +188,7 @@ export let sprites = {};
 
 export let color_button = makeColorSet([1,1,1,1]);
 export let color_panel = vec4(1, 1, 0.75, 1);
-export let modal_font_style = glov_font.styleColored(null, 0x000000ff);
+export let modal_font_style = glov_font.styleColored(null, 0xFFFFFFff);
 
 let sounds = {};
 export let button_mouseover = false; // for callers to poll the very last button
