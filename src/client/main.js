@@ -1215,7 +1215,7 @@ export function main() {
         '21-30 errors → -5⚡\n';
     } else if (page === 3) {
       text = 'Score is increased for more connected tiles of the same color (excluding damaged tiles).\n\n' +
-        'Damaged (dark red) tiles do NOT need to be filled in to fix a leak, however there is' +
+        'Damaged (broken) tiles do NOT need to be filled in to fix a leak, however there is' +
         ' no penalty for placing over a damaged tile, and doing so strategically may increase your score!';
     } else if (page === 4) {
       text = 'Different modes have a different feel.\n\n' +
