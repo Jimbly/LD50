@@ -3,7 +3,7 @@ LD50 - Delay the inevitable
 
 Ludum Dare 50 Entry by Jimbly - "Carpentangle"
 
-* Play here: [http://www.dashingstrike.com/LudumDare/LD50/](dashingstrike.com/LudumDare/LD50/)
+* Play here: [dashingstrike.com/LudumDare/LD50/](http://www.dashingstrike.com/LudumDare/LD50/)
 * Using [Javascript libGlov/GLOV.js framework](https://github.com/Jimbly/glovjs)
 
 Start with: `npm start` (after running `npm i` once)
